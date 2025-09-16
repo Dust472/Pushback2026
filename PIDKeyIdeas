@@ -1,0 +1,66 @@
+What does it do?
+Can fix coding problems (listed below) by actively changing and controling motor outputs by code
+  robot not going in a straight path
+  inconsistent results
+  not getting exactly at the target position (too far/too close)
+  Program speed reductions
+    These results are usually caused by bad wheels, bad motors, or VEX Brain lags
+There are many more problems that PID can resolve
+
+
+Where can we use it in the whole Competition?
+PID is usually used alongside Odometry in the autonomous period.
+This is because PID + Odometry together can fix your robot's position anytime it is messed up along its path. 
+Example: your preloaded position is slightly off from the ideal preload position. Odom + PID can fix this error.
+Another example: Your ally accidentally bumps into your robot, putting you out of position. PID + Odom can fix this as well.
+
+*PID applies to every system control (That means, every subsystem of our robot can be controlled using PID, although for some subsystems it isn't very practical especially when it comes to just moving a piston from one position to another by the click of a button)
+
+Proportional Control ("P" in PID):
+Pseudocode:
+autonomous() {
+  motors move for 100 deg and stop
+}
+After motors move, the program sets the brake of the robot after reaching the target. This means that the duration of the deceleration after the motors move for 100 deg is not considered.
+Therefore, this causes the robot to overshoot from the target destination. 
+
+The P controller controls the speed smoothly so that the robot can slow down as it approaches the target destination.
+You can change the smoothness of the acceleration/deceleration by changing Kp in the equation below.
+This makes sense, cause in the equation below, t = Kp(phetad - pheta). This is basically saying to multiply Kp by the difference between our current value and the target value.
+As the bot gets closer to the target value, the difference gets smaller, so that means the PID will "tell" the motor to give less torque.
+
+Integral Control ("I"):
+There are some issues still present if we just use P control. 
+There is a constant amount of error at the end of the path of the your robot (overshoot) due to Kp being too weak when it gets close to the end.
+When the Kp is a bit high, it causes the torque to overshoot.
+When the Kp is too high, it'll oscilate along the target.
+This is where I control comes in.
+It pushes back errors after a certain period. 
+Ki = smaller, shortens the time required to fix the error
+Ki = too small, causes it to oscilate
+Ki = larger, extends the time required to fix the error
+
+Derivative Control ("D"):
+PI may already sound perfect, but there "is" a tiny big left to fix
+I control takes a certain time to trigger.
+This means that it is not good when there is a large change in the output value 
+This is where D control comes in
+D control will counter large changes in each loop (that is, the amount of the error compared from this step to last step)
+It controls the amount of time it takes for it to push the value back to the target.
+Kd = large, makes the response time quicker
+Kd = too large, oscilation
+Kd = small, extends the response time to adjust the value
+
+                                      
+
+Equation: t = Kp(phetad - pheta) + Ki(integral from 0 to T of (phetad - pheta)dt)
+t = torque
+Kp = Multiplier of the P control
+Ki = Multiplier of the I control
+dt = duration of the interval of each discrete step of the update of the control output
+T = integral time, determines how quickly the whole integral component responds to accumulating error over time
+phetad = target orientation
+pheta = current orientation
+
+That's how PID works! 
+Now we need to think about how we can implement this into our code. Since it's a subsystem of all subsystems, maybe we could use inheritance?
