@@ -29,7 +29,7 @@ You can change the smoothness of the acceleration/deceleration by changing Kp in
 This makes sense, cause in the equation below, t = Kp(phetad - pheta). This is basically saying to multiply Kp by the difference between our current value and the target value.
 As the bot gets closer to the target value, the difference gets smaller, so that means the PID will "tell" the motor to give less torque.
 
-Integral Control ("I"):
+Integral Control ("I", I control is very similar to D control, so we might not use, but just in case, here it is):
 There are some issues still present if we just use P control. 
 There is a constant amount of error at the end of the path of the your robot (overshoot) due to Kp being too weak when it gets close to the end.
 When the Kp is a bit high, it causes the torque to overshoot.
