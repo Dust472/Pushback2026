@@ -3,6 +3,10 @@
 using namespace std;
 using namespace pros;
 
+Controller master(E_CONTROLLER_MASTER);
+MotorGroup left_mg({1, 2, 3});
+MotorGroup right_mg({11, -12, 13});
+
 class PID {
 	
 };
@@ -20,9 +24,9 @@ class odom {
 		to the respective sides. The "&" symbol just gets the VALUE of the MotorGroup parameters
 		(since Pointers are essentially just placeholders in memory for things)
 		*/
-		odom(MotorGroup& leftSide, MotorGroup& rightSide) {
-			this->leftDT = &leftSide;
-			this->rightDT = &rightSide;
+		odom() {
+			this->leftDT = &left_mg;
+			this->rightDT = &right_mg;
 			this->quadrantTarget = 0;
 			this->forewardDriving = true;
 		}
@@ -66,7 +70,7 @@ class odom {
 			}
 			
 			while(true) {
-				
+
 			}
 		}
 
@@ -99,7 +103,6 @@ void initialize() {
 
 	pros::lcd::register_btn1_cb(on_center_button);
 	*/
-	
 }
 
 /**
@@ -118,7 +121,9 @@ void disabled() {}
  * This task will exit when the robot is enabled and autonomous or opcontrol
  * starts.
  */
-void competition_initialize() {}
+void competition_initialize() {
+
+}
 
 /**
  * Runs the user autonomous code. This function will be started in its own task
@@ -132,10 +137,7 @@ void competition_initialize() {}
  * from where it left off.
  */
 void autonomous() {
-	Controller master(E_CONTROLLER_MASTER);
-	MotorGroup left_mg({-1, 2, 3});
-	MotorGroup right_mg({11, 12, 13});
-	odom odomPod(left_mg, right_mg);
+	
 }
 /**
  * Runs the operator control code. This function will be started in its own task
@@ -151,21 +153,54 @@ void autonomous() {
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-	Controller master(E_CONTROLLER_MASTER);
-	MotorGroup left_mg({-1, 2, 3});
-	MotorGroup right_mg({11, 12, 13});  
+	// Controller master(E_CONTROLLER_MASTER);
+	// MotorGroup left_mg({1, 2, 3});
+	// MotorGroup right_mg({4, 5, 6});  
 	
 	while (true) {
-		/*
-		pros::lcd::print(0, "%d %d %d", (pros::lcd::read_buttons() & LCD_BTN_LEFT) >> 2,
-		                 (pros::lcd::read_buttons() & LCD_BTN_CENTER) >> 1,
-		                 (pros::lcd::read_buttons() & LCD_BTN_RIGHT) >> 0);  // Prints status of the emulated screen LCDs
-		*/
 		// Arcade control scheme
-		int dir = master.get_analog(ANALOG_LEFT_Y);    
-		int turn = master.get_analog(ANALOG_RIGHT_X);  
-		left_mg.move_velocity(-1*(dir + turn));                      
-		right_mg.move_velocity(dir + turn);                     
-		delay(20);                               
+		int leftStickValue = master.get_analog(ANALOG_LEFT_Y);    
+		int rightStickValue = master.get_analog(ANALOG_RIGHT_X);
+		if(rightStickValue != 0 && leftStickValue == 0){
+			//Rotate bot BUT DON'T CHANGE POSITION
+			if(rightStickValue > 0) {
+				right_mg.move_velocity(-rightStickValue);
+				left_mg.move_velocity(rightStickValue);
+			}
+			else{
+				right_mg.move_velocity(rightStickValue);
+				left_mg.move_velocity(-rightStickValue);
+			}
+		}
+		else if (leftStickValue != 0 && rightStickValue == 0) {
+			//Move the bot forward or backward
+			if(leftStickValue > 0) {
+				right_mg.move_velocity(leftStickValue);
+				left_mg.move_velocity(leftStickValue);
+			}
+			else{
+				right_mg.move_velocity(-leftStickValue);
+				left_mg.move_velocity(-leftStickValue);
+			}
+		}
+		else if (leftStickValue != 0 && rightStickValue != 0) {
+			if(leftStickValue < 0 && rightStickValue < 0) {
+				// Moving backwards and rotating left
+				right_mg.move_velocity(1.5 * rightStickValue);
+				left_mg.move_velocity(0.5 * leftStickValue);
+			} else if(leftStickValue > 0 && rightStickValue < 0) {
+				// Moving forwards and rotating left
+				left_mg.move_velocity(0.5 * leftStickValue);
+				right_mg.move_velocity(-1.5 * rightStickValue);
+			} else if(leftStickValue < 0 && rightStickValue > 0) {
+				// Moving backwards and rotating right
+				right_mg.move_velocity(-0.5 * rightStickValue);
+				left_mg.move_velocity(1.5 * leftStickValue);
+			} else if(leftStickValue > 0 && rightStickValue > 0) {
+				// Moving forwards and rotating right
+				right_mg.move_velocity(0.5 * rightStickValue);
+				left_mg.move_velocity(1.5 * leftStickValue);
+			}
+		}                               
 	}
 }
