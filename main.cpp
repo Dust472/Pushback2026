@@ -1,11 +1,16 @@
 #include "main.h"
+#include "api.h"
+
+#include "pros/motors.hpp"
+#include "pros/motor_group.hpp"
 
 using namespace std;
 using namespace pros;
 
 Controller master(E_CONTROLLER_MASTER);
-MotorGroup left_mg({1, 2, 3});
+MotorGroup left_mg({1, -2, -3});
 MotorGroup right_mg({11, -12, 13});
+Motor intake(10);
 
 class PID {
 	
@@ -90,6 +95,108 @@ void on_center_button() {
 
 }
 
+
+// One = true, two = false
+//Right = true, left = false
+bool rightOrLeft = true;
+bool oneOrTwo = true;
+bool defaultRight = rightOrLeft;
+
+void rightButtonPressed() {
+	while(true) {
+		if(oneOrTwo) {
+			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_RIGHT)) {
+				lcd::print(5, "rightButtonPressed");
+				rightOrLeft = true;
+			}
+		}
+		delay(1);
+	}
+}
+
+void leftButtonPressed() {
+	while(true) {
+		if(oneOrTwo) {	
+			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_LEFT)) {
+				lcd::print(6, "Left Button Pressed");
+				rightOrLeft = false;
+			}
+		}
+		delay(1);
+	}
+}
+
+void bButtonPressed() {
+	while(true) {
+		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_B)) {
+			lcd::print(2, "B Button Pressed");
+			oneOrTwo = !oneOrTwo;
+			if(!oneOrTwo) {
+				rightOrLeft = defaultRight;
+			}
+			lcd::print(4, "One stick active: %d", oneOrTwo);
+		}
+		delay(1);
+	}
+}
+
+/**
+ * Actual performs all of the button logic to move the motors
+ */
+void moveMotors() {
+	// This runs the code to actually move the motors based on the buttons
+	while(true) {
+		// Get all needed controller analog stick values
+		int rightStickValueX = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
+		int rightStickValueY = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_Y);
+		int leftStickValueX = master.get_analog(E_CONTROLLER_ANALOG_LEFT_X);
+		int leftStickValueY = master.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
+
+		// This switch statement handles all of the button-pressing logic
+		switch(oneOrTwo) {
+			case true:
+				if(rightOrLeft == true) {
+					right_mg.move_velocity(rightStickValueY - rightStickValueX);
+					left_mg.move_velocity(rightStickValueY + rightStickValueX);
+				}
+				else {
+					right_mg.move_velocity(leftStickValueY - leftStickValueX);
+					left_mg.move_velocity(leftStickValueY + leftStickValueX);
+				}
+				break;
+			case false:
+				right_mg.move_velocity(leftStickValueY - rightStickValueX);
+				left_mg.move_velocity(leftStickValueY + rightStickValueX);
+		}
+
+		// To prevent the program from crashing
+		pros::Task::delay(5);
+	}
+}
+/**
+ * This starts all of the tasks (which hold the logic for the drivetrain)
+ */
+void moveDriveTrain() {
+	Task bButtonPress(bButtonPressed);
+	Task rightButtonPress(rightButtonPressed);
+	Task leftButtonPress(leftButtonPressed);
+	Task moveMotor(moveMotors);
+}
+
+/**
+ * This allows moving the drivetrain to be asynchronous with moving the intake
+ */
+void moveIntake() {
+	while(true) {
+		if(master.get_digital(E_CONTROLLER_DIGITAL_L1)) {
+			intake.move_velocity(200);  
+		}
+		else {
+			intake.move_velocity(0);
+		}
+		pros::Task::delay(20);
+	}
+}
 /**
  * Runs initialization code. This occurs as soon as the program is started.
  *
@@ -97,12 +204,8 @@ void on_center_button() {
  * to keep execution time for this mode under a few seconds.
  */
 void initialize() {
-	/*
-	pros::lcd::initialize();
-	pros::lcd::set_text(1, "Hello PROS User!");
-
-	pros::lcd::register_btn1_cb(on_center_button);
-	*/
+	lcd::initialize();
+	lcd::print(0, "sksks");
 }
 
 /**
@@ -139,6 +242,8 @@ void competition_initialize() {
 void autonomous() {
 	
 }
+
+
 /**
  * Runs the operator control code. This function will be started in its own task
  * with the default priority and stack size whenever the robot is enabled via
@@ -152,55 +257,8 @@ void autonomous() {
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
-void opcontrol() {
-	// Controller master(E_CONTROLLER_MASTER);
-	// MotorGroup left_mg({1, 2, 3});
-	// MotorGroup right_mg({4, 5, 6});  
-	
-	while (true) {
-		// Arcade control scheme
-		int leftStickValue = master.get_analog(ANALOG_LEFT_Y);    
-		int rightStickValue = master.get_analog(ANALOG_RIGHT_X);
-		if(rightStickValue != 0 && leftStickValue == 0){
-			//Rotate bot BUT DON'T CHANGE POSITION
-			if(rightStickValue > 0) {
-				right_mg.move_velocity(-rightStickValue);
-				left_mg.move_velocity(rightStickValue);
-			}
-			else{
-				right_mg.move_velocity(rightStickValue);
-				left_mg.move_velocity(-rightStickValue);
-			}
-		}
-		else if (leftStickValue != 0 && rightStickValue == 0) {
-			//Move the bot forward or backward
-			if(leftStickValue > 0) {
-				right_mg.move_velocity(leftStickValue);
-				left_mg.move_velocity(leftStickValue);
-			}
-			else{
-				right_mg.move_velocity(-leftStickValue);
-				left_mg.move_velocity(-leftStickValue);
-			}
-		}
-		else if (leftStickValue != 0 && rightStickValue != 0) {
-			if(leftStickValue < 0 && rightStickValue < 0) {
-				// Moving backwards and rotating left
-				right_mg.move_velocity(1.5 * rightStickValue);
-				left_mg.move_velocity(0.5 * leftStickValue);
-			} else if(leftStickValue > 0 && rightStickValue < 0) {
-				// Moving forwards and rotating left
-				left_mg.move_velocity(0.5 * leftStickValue);
-				right_mg.move_velocity(-1.5 * rightStickValue);
-			} else if(leftStickValue < 0 && rightStickValue > 0) {
-				// Moving backwards and rotating right
-				right_mg.move_velocity(-0.5 * rightStickValue);
-				left_mg.move_velocity(1.5 * leftStickValue);
-			} else if(leftStickValue > 0 && rightStickValue > 0) {
-				// Moving forwards and rotating right
-				right_mg.move_velocity(0.5 * rightStickValue);
-				left_mg.move_velocity(1.5 * leftStickValue);
-			}
-		}                               
-	}
+void opcontrol() { 
+	lcd::print(1, "Intake task working");
+	Task movingDT(moveDriveTrain);
+	Task movingIntake(moveIntake);
 }
