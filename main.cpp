@@ -16,58 +16,58 @@ MotorGroup intake({-9, 10});
 IMU inertialSensor(19);
 // poopooopooo
 //676776767676767667676767
-class odom {
-	private:
-		MotorGroup* leftDT;
-		MotorGroup* rightDT;
-		double position[2];
-		IMU* inertialSensor;
-		double Kp;
-	public:
-		/*
-		This is the constructor for our odom object. It takes in the sides of the drivetrains and sets the class attributes (above)
-		to the respective sides.
-		*/
-		odom() {
-			this->inertialSensor = &inertialSensor;
-			this->leftDT = &left_mg;
-			this->rightDT = &right_mg;
-			this->position[0] = 0;
-			this->position[1] = 0;
-		}
+// class odom {
+// 	private:
+// 		MotorGroup* leftDT;
+// 		MotorGroup* rightDT;
+// 		double position[2];
+// 		IMU* inertialSensor;
+// 		double Kp;
+// 	public:
+// 		/*
+// 		This is the constructor for our odom object. It takes in the sides of the drivetrains and sets the class attributes (above)
+// 		to the respective sides.
+// 		*/
+// 		odom() {
+// 			this->leftDT = &left_mg;
+// 			this->rightDT = &right_mg;
+// 			this->position[0] = 0;
+// 			this->position[1] = 0;
+// 		}
 		
-		/** 
-		 * This function actually takes input (when we call this function in the autonomous function below) and moves the bot
-		 * based on that input
-		 * Parameters:
-		 * x: the target x-coordinate for the bot
-		 * y: the target y-coordinate for the bot
-		 * xErr: the bounds allowed for overshoot (x-axis)
-		 * yErr: the bounds allowed for overshoot (y-axis)
-		 * */
-		void changeBotPosition(double x, double y, double xErr, double yErr) {
-			double targetRadius = sqrt((x * x) + (y * y));
-			double targetAngle = atan2(y, x);
-			double currentRadius;
+// 		/** 
+// 		 * This function actually takes input (when we call this function in the autonomous function below) and moves the bot
+// 		 * based on that input
+// 		 * Parameters:
+// 		 * x: the target x-coordinate for the bot
+// 		 * y: the target y-coordinate for the bot
+// 		 * xErr: the bounds allowed for overshoot (x-axis)
+// 		 * yErr: the bounds allowed for overshoot (y-axis)
+// 		 * */
+// 		void changeBotPosition(double x, double y, double xErr, double yErr) {
+// 			double targetRadius = sqrt((x * x) + (y * y));
+// 			double targetAngle = atan2(y, x);
+// 			double currentRadius;
 			
-			while(abs(this->position[0] - x) > xErr && abs(this->position[1] - y) > yErr){
-				currentRadius = sqrt((this->position[0] * this->position[0]) + (this->position[1] * this->position[1]));
+// 			while(abs(this->position[0] - x) > xErr && abs(this->position[1] - y) > yErr){
+// 				currentRadius = sqrt((this->position[0] * this->position[0]) + (this->position[1] * this->position[1]));
 				
-			}
-			resetBotPosition();
-		}
+// 			}
+// 			resetBotPosition();
+// 		}
 
-		/**
-		 * This resets the position arrays values. The plan is to use this after we reach each target position. That way, we can get accurate
-		 * feedback for when we check to see if the robot's position is 
-		 */
-		void resetBotPosition() {
-			this->position[0] = 0;
-			this->position[1] = 0;
-		}
-};
+// 		/**
+// 		 * This resets the position arrays values. The plan is to use this after we reach each target position. That way, we can get accurate
+// 		 * feedback for when we check to see if the robot's position is 
+// 		 */
+// 		void resetBotPosition() {
+// 			this->position[0] = 0;
+// 			this->position[1] = 0;
+// 		}
+// };
 
-odom odomPod();
+
+//odom odomPod();
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -100,6 +100,24 @@ void competition_initialize() {
 	inertialSensor.reset();
 }
 
+/*While the Odom is deactivated, this code will move the bot forward or backward
+  depending on a value between -1 and 1 using move_voltage.
+*/
+void preciseMove(int moveDirection){
+	if(moveDirection == 1) {
+		right_mg.move_voltage(7000);
+		left_mg.move_voltage(7000);
+	}
+	if(moveDirection == 0) {
+		right_mg.move_voltage(0);
+		left_mg.move_voltage(0);	
+	}
+	if(moveDirection == -1) {
+		right_mg.move_voltage(-7000);
+		left_mg.move_voltage(-7000);
+	}
+}
+
 /**
  * Runs the user autonomous code. This function will be started in its own task
  * with the default priority and stack size whenever the robot is enabled via
@@ -112,7 +130,9 @@ void competition_initialize() {
  * from where it left off.
  */
 void autonomous() {
-
+	preciseMove(1);
+	pros::Task::delay(1000);
+	preciseMove(0);
 }
 
 /*
@@ -255,6 +275,8 @@ void extake() {
 	}
 }
 
+
+
 /**
  * Runs the operator control code. This function will be started in its own task
  * with the default priority and stack size whenever the robot is enabled via
@@ -274,69 +296,3 @@ void opcontrol() {
 	Task movingIntake(moveIntake);
 	Task extaking(extake);
 }
-
-/*
-movement type (boolean, true = one stick, false = two stick)
-right stick or left stick (boolean, true = right stick, false = left stick)
-
-if(b button new press) then
-	one or two stick = opposite of its current value
-if(one or two stick == one stick) then
-	if(left button new press) then
-		right stick or left stick = left
-	if(right button new press) then 
-		right stick or left stick = right
-*/
-
-// void opcontrol() {
-// 	bool oneOrTwo = true;
-// 	bool rightOrLeft = true;
-// 	bool initOneOrTwo = oneOrTwo;
-// 	while(true) {
-// 		int turnRight = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
-// 		int dirLeft = master.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
-// 		int turnLeft = master.get_analog(E_CONTROLLER_ANALOG_LEFT_X);
-// 		int dirRight = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_Y);
-
-// 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_B)) {
-// 			oneOrTwo = !oneOrTwo;
-// 			if(oneOrTwo == false) {
-// 				rightOrLeft = initOneOrTwo;
-// 			}
-// 		}
-
-// 		if(oneOrTwo) {
-// 			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_LEFT)) {
-// 				rightOrLeft = false;
-// 			}
-// 			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_RIGHT)) {
-// 				rightOrLeft = true;
-// 			}
-// 		}
-
-// 		switch(oneOrTwo) {
-// 			case true:
-// 				if(rightOrLeft == true) {
-// 					right_mg.move_velocity(dirRight - turnRight);
-// 					left_mg.move_velocity(dirRight + turnRight);
-// 				}
-// 				else {
-// 					right_mg.move_velocity(dirLeft - turnLeft);
-// 					left_mg.move_velocity(dirLeft + turnLeft);
-// 				}
-// 				break;
-// 			case false:
-// 				right_mg.move_velocity(dirLeft - turnRight);
-// 				left_mg.move_velocity(dirLeft + turnRight);
-
-// 		}
-// 		pros::Task::delay(5);
-// 	}
-// }
-
-
-
-
-
-
-
