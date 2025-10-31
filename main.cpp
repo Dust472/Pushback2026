@@ -7,6 +7,8 @@
 using namespace std;
 using namespace pros;
 
+#define DIGITAL_SENSOR_PORT 1
+#define DIGITAL_SENSOR_PORT_2 2
 
 
 Controller master(E_CONTROLLER_MASTER);
@@ -14,6 +16,11 @@ MotorGroup left_mg({1, -2, -3});
 MotorGroup right_mg({11, -12, 13});
 MotorGroup intake({-9, 10});
 IMU inertialSensor(19);
+bool state = LOW;
+pros::adi::Pneumatics intakeHoodPiston1('A', true);
+pros::adi::Pneumatics intakeHoodPiston2('B', false);
+
+
 // poopooopooo
 //676776767676767667676767
 // class odom {
@@ -66,8 +73,7 @@ IMU inertialSensor(19);
 // 		}
 // };
 
-
-//odom odomPod();
+// odom odomPod();
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -77,7 +83,7 @@ IMU inertialSensor(19);
  */
 void initialize() {
 	lcd::initialize();
-	lcd::print(0, "sksks");
+	lcd::print(0, "code uploaded");
 }
 
 /**
@@ -130,9 +136,7 @@ void preciseMove(int moveDirection){
  * from where it left off.
  */
 void autonomous() {
-	preciseMove(1);
-	pros::Task::delay(1000);
-	preciseMove(0);
+
 }
 
 /*
@@ -275,7 +279,14 @@ void extake() {
 	}
 }
 
-
+void hoodIntake1() {
+	while(true) {
+		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_L2)) {
+			intakeHoodPiston1.toggle();
+		}
+		delay(5);
+	}
+}
 
 /**
  * Runs the operator control code. This function will be started in its own task
@@ -295,4 +306,71 @@ void opcontrol() {
 	Task movingDT(moveDriveTrain);
 	Task movingIntake(moveIntake);
 	Task extaking(extake);
+	Task hoodIntake(hoodIntake1);
 }
+
+/*
+movement type (boolean, true = one stick, false = two stick)
+right stick or left stick (boolean, true = right stick, false = left stick)
+
+if(b button new press) then
+	one or two stick = opposite of its current value
+if(one or two stick == one stick) then
+	if(left button new press) then
+		right stick or left stick = left
+	if(right button new press) then 
+		right stick or left stick = right
+*/
+
+// void opcontrol() {
+// 	bool oneOrTwo = true;
+// 	bool rightOrLeft = true;
+// 	bool initOneOrTwo = oneOrTwo;
+// 	while(true) {
+// 		int turnRight = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
+// 		int dirLeft = master.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
+// 		int turnLeft = master.get_analog(E_CONTROLLER_ANALOG_LEFT_X);
+// 		int dirRight = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_Y);
+
+// 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_B)) {
+// 			oneOrTwo = !oneOrTwo;
+// 			if(oneOrTwo == false) {
+// 				rightOrLeft = initOneOrTwo;
+// 			}
+// 		}
+
+// 		if(oneOrTwo) {
+// 			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_LEFT)) {
+// 				rightOrLeft = false;
+// 			}
+// 			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_RIGHT)) {
+// 				rightOrLeft = true;
+// 			}
+// 		}
+
+// 		switch(oneOrTwo) {
+// 			case true:
+// 				if(rightOrLeft == true) {
+// 					right_mg.move_velocity(dirRight - turnRight);
+// 					left_mg.move_velocity(dirRight + turnRight);
+// 				}
+// 				else {
+// 					right_mg.move_velocity(dirLeft - turnLeft);
+// 					left_mg.move_velocity(dirLeft + turnLeft);
+// 				}
+// 				break;
+// 			case false:
+// 				right_mg.move_velocity(dirLeft - turnRight);
+// 				left_mg.move_velocity(dirLeft + turnRight);
+
+// 		}
+// 		pros::Task::delay(5);
+// 	}
+// }
+
+
+
+
+
+
+
