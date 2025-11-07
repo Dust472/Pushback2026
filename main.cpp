@@ -262,68 +262,51 @@ void competition_initialize() {
   depending on a value between -1 and 1 using move_voltage.
 */
 
-/*This code will move the bot forward or backward
+/*While the odom is off, this code will move the bot forward or backward
   depending on a value between -1 and 1 using the autonomous function 
   by setting the voltage of the motors to a constant speed.
 */
 void passiveMove(int moveDirection){
-	if(moveDirection == 1) {
+	if(!odomPod.getOdomOn() && moveDirection == 1) {
 		right_mg.move_voltage(7000);
 		left_mg.move_voltage(7000);
 	}
-	if(moveDirection == 0) {
+	if(!odomPod.getOdomOn() && moveDirection == 0) {
 		right_mg.move_voltage(0);
 		left_mg.move_voltage(0);	
 	}
-	if(moveDirection == -1) {
+	if(!odomPod.getOdomOn() && moveDirection == -1) {
 		right_mg.move_voltage(-7000);
 		left_mg.move_voltage(-7000);
 	}
 }
 
-/*This code will move the bot forward or backward
+/*while the odom is off, this code will move intake orbs or extake orbs
   depending on a value between -1 and 1 using the autonomous function 
-  by setting the voltage of the motors to a constant speed.
+  by setting the velocity of the intake to a constant speed.
 */
 void passiveInExtake(int param){
-	if(param == 1){
+	if(!odomPod.getOdomOn() && param == 1){
 		intake.move_velocity(200);
 	}
-	if(param == 0){
+	if(!odomPod.getOdomOn() && param == 0){
 		intake.move_velocity(0);
 	}
-	if(param == -1){
+	if(!odomPod.getOdomOn() && param == -1){
 		intake.move_velocity(-200);
 	}
 }
 
-int preciseMove(int moveDirection){
-	if(!odomPod.getOdomOn()) {
-		return 1;
-	}
-	if(moveDirection == 1) {
-		right_mg.move_voltage(7000);
-		left_mg.move_voltage(7000);
-	}
-	if(moveDirection == 0) {
-		right_mg.move_voltage(0);
-		left_mg.move_voltage(0);	
-	}
-	if(moveDirection == -1) {
-		right_mg.move_voltage(-7000);
-		left_mg.move_voltage(-7000);
-	}
-	return 1;
-}
-
+/*This code allows us to test the functions that we make so that 
+  we can see the real time effectiveness*/
 void testing() {
 	odomPod.setOdomOn(false);
 	while(true) {
-		preciseMove(1);
+		passiveMove(1);
 		printf("%d", odomPod.getPoseX());
 		printf("%d", odomPod.getPoseY());
 		delay(1000);
-		preciseMove(0);
+		passiveMove(0);
 		delay(1000);
 	}
 	
@@ -571,10 +554,3 @@ if(one or two stick == one stick) then
 // 		pros::Task::delay(5);
 // 	}
 // }
-
-
-
-
-
-
-
