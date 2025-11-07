@@ -261,6 +261,42 @@ void competition_initialize() {
 /*While the Odom is deactivated, this code will move the bot forward or backward
   depending on a value between -1 and 1 using move_voltage.
 */
+
+/*This code will move the bot forward or backward
+  depending on a value between -1 and 1 using the autonomous function 
+  by setting the voltage of the motors to a constant speed.
+*/
+void passiveMove(int moveDirection){
+	if(moveDirection == 1) {
+		right_mg.move_voltage(7000);
+		left_mg.move_voltage(7000);
+	}
+	if(moveDirection == 0) {
+		right_mg.move_voltage(0);
+		left_mg.move_voltage(0);	
+	}
+	if(moveDirection == -1) {
+		right_mg.move_voltage(-7000);
+		left_mg.move_voltage(-7000);
+	}
+}
+
+/*This code will move the bot forward or backward
+  depending on a value between -1 and 1 using the autonomous function 
+  by setting the voltage of the motors to a constant speed.
+*/
+void passiveInExtake(int param){
+	if(param == 1){
+		intake.move_velocity(200);
+	}
+	if(param == 0){
+		intake.move_velocity(0);
+	}
+	if(param == -1){
+		intake.move_velocity(-200);
+	}
+}
+
 int preciseMove(int moveDirection){
 	if(!odomPod.getOdomOn()) {
 		return 1;
