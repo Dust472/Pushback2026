@@ -418,6 +418,7 @@ void moveIntake() {
 			bottomIntake.move_velocity(200);
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_L1)) {
 			topIntake.move_velocity(-200);
+			topPiston.extend();
 		} else {
 			intake.move_velocity(0);
 			topPiston.retract();
