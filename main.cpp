@@ -12,11 +12,12 @@ using namespace pros;
 
 
 Controller master(E_CONTROLLER_MASTER);
-MotorGroup left_mg({-1, 2, 3});
-MotorGroup right_mg({11, -12, 13});
-Motor bottomIntake(16);
-Motor topIntake(17);
-MotorGroup intake({bottomIntake.get_port(), topIntake.get_port()});
+MotorGroup left_mg({1, 2, 3});
+MotorGroup right_mg({18, 19, 20});
+Motor firstStageIntake(8);
+Motor secondStageIntake(9);
+Motor thirdStageIntake(10);
+MotorGroup intake({firstStageIntake.get_port(), secondStageIntake.get_port()});
 pros::adi::Pneumatics topPiston('A', false);
 adi::Pneumatics scraperMech('B', false);
 Rotation odomP(18);
@@ -411,17 +412,15 @@ void moveIntake() {
 	while(true) {
 		if(master.get_digital(E_CONTROLLER_DIGITAL_R2)) {
 			intake.move_velocity(200);
-			topPiston.extend();
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_R1)) {
 			intake.move_velocity(-200);
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_L2)) {
-			bottomIntake.move_velocity(200);
+			thirdStageIntake.move_velocity(200);
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_L1)) {
-			topIntake.move_velocity(-200);
-			topPiston.extend();
+			thirdStageIntake.move_velocity(-200);
 		} else {
 			intake.move_velocity(0);
-			topPiston.retract();
+			thirdStageIntake.move_velocity(0);
 		}
 		pros::Task::delay(20);
 	}
