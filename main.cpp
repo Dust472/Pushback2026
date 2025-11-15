@@ -247,15 +247,14 @@ class odom {
 			while(!this->isOriented) {
 				delay(10);
 			}
-A
 
-			double integral = 0;
+			double integralS = 0;
 
 			while(true) {
 
 				double error = targetRadius - currentRadius;
 				if(error < 100 && error > -100) {
-					integral += error;
+					integralS += error;
 				}
 				double derivative = error - prevError;
 
@@ -373,10 +372,13 @@ void autonomous() {
 	}
 }
 
-void moveScraperMech() {
+void movePistons() {
 	while(true) {
 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_X)) {
 			scraperMech.toggle();
+		}
+		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_Y)) {
+			topPiston.toggle();
 		}
 	}
 }
@@ -409,6 +411,7 @@ void moveIntake() {
 	while(true) {
 		if(master.get_digital(E_CONTROLLER_DIGITAL_R2)) {
 			intake.move_velocity(200);
+			topPiston.extend();
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_R1)) {
 			intake.move_velocity(-200);
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_L2)) {
@@ -417,6 +420,7 @@ void moveIntake() {
 			topIntake.move_velocity(-200);
 		} else {
 			intake.move_velocity(0);
+			topPiston.retract();
 		}
 		pros::Task::delay(20);
 	}
@@ -439,5 +443,5 @@ void opcontrol() {
 	lcd::print(1, "Intake task working");
 	Task movingDT(moveMotors);
 	Task movingIntake(moveIntake);
-	Task scraperMechTask(moveScraperMech);
+	Task pneuTask(movePistons);
 }
