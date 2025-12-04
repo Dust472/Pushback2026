@@ -8,6 +8,7 @@
 
 using namespace std;
 using namespace pros;
+using namespace competition;
 
 
 
@@ -20,271 +21,431 @@ Motor thirdStageIntake(-10);
 MotorGroup intake({firstStageIntake.get_port(), secondStageIntake.get_port()});
 pros::adi::Pneumatics topPiston('B', true);
 adi::Pneumatics scraperMech('A', true);
-adi::Pneumatics wingPiston('C', true);
+adi::Pneumatics wingPiston('C', false);
 Rotation odomP(18);
-IMU inertialSensor(15);
+IMU inertialSensor(4);
 
-// class odom {
-// 	private:
-// 		double position[3];
-// 		bool odomOn;
-// 		double leftAverage;
-// 		double rightAverage;
-// 		double odomPPosition;
-// 		double kP;
-// 		double kI;
-// 		double kD;
-// 		double prevError;
-// 		double prevMotorPower;
-// 		bool isOriented;
-// 		double trackWidth;
-// 	public:
-// 		/*
-// 		This is the constructor for our odom object. It takes in the sides of the drivetrains and sets the class attributes (above)
-// 		to the respective sides.
-// 		*/
-// 		odom() {
-// 			this->position[0] = 0;
-// 			this->position[1] = 0;
-// 			this->position[2] = 0;
-// 			this->odomOn = false;
-// 			this->leftAverage = 0;
-// 			this->rightAverage = 0;
-// 			this->odomPPosition = 0;
-// 			this->kP = 0.15;
-// 			this->kI = 0.30;
-// 			this->kD = 0.45;
-// 			this->prevError = 0;
-// 			this->prevMotorPower = 0;
-// 			this->isOriented = false;
-// 			this->trackWidth = 15.5;
-// 		}
-// 		/**
-// 		 * This resets the position arrays values. The plan is to use this after we reach each target position. That way, we can get accurate
-// 		 * feedback for when we check to see if the robot's position is 
-// 		 */
-// 		void resetBotPosition() {
-// 			this->position[0] = 0;
-// 			this->position[1] = 0;
-// 			this->position[0] = 0;
-// 			odomP.reset_position();
-// 			inertialSensor.tare_yaw();
-// 			left_mg.set_zero_position_all(0);
-// 			right_mg.set_zero_position_all(0);
-// 		}
+class odom {
+	private:
+		double position[3];
+		double motorSpeed;
+		double turnSpeed;
+		double desiredAngle;
+		double updatingError;
+		bool angled;
+		
+		double x;
+		double y;
+		double xError;
+		double yError;
+		double percent;
+		double originalDistance;
+		bool stop;
+		bool positioned;
+		bool curving;
+		bool tracking;
+		double integral;
+		bool odomOn;
+		double maxSpeed;
+		bool turnSwitch;
 
-// 		bool getOdomOn() {
-// 			return this->odomOn;
-// 		}
+		double oldL;
+		double oldR;
 
-// 		void setOdomOn(bool newValue) {
-// 			this->odomOn = newValue;
-// 			if(newValue) {
-// 				resetBotPosition();
-// 			}
-// 		}
+		double distanceTraveled;
+		static int turnCount;
+		static int moveCount;
+	public:
+		/*
+		This is the constructor for our odom object. It takes in the sides of the drivetrains and sets the class attributes (above)
+		to the respective sides.
+		*/
+		odom() {
+			this->position[0] = 0;
+			this->position[1] = 0;
+			this->position[2] = 0;
 
-// 		double getPoseX() {
-// 			return this->position[0];
-// 		}
+			this->motorSpeed = 0;
+			this->turnSpeed = 0;
+			this->desiredAngle = 0;
+			this->updatingError = 0;
+			this->angled = true;
 
-// 		double getPoseY() {
-// 			return this->position[1];
-// 		}
+			this->x = 0;
+			this->y = 0;
+			this->xError = 0;
+			this->yError = 0;
+			this->percent = 1;
+			this->originalDistance = 1;
+			this->stop = true;
+			this->positioned = true;
+			this->curving = false;
+			this->tracking = false;
+			this->integral = 0;
+			this->odomOn = true;
+			this->maxSpeed = 1;
+			this->turnSwitch = true;
 
-// 		double getOrientation() {
-// 			return this->position[2];
-// 		}
+			this->oldL = 0;
+			this->oldR = 0;
+			
 
-// 		void printPose() {
-// 			lcd::print(5, "%d", this->position[0]);
-// 			lcd::print(6, "%d", this->position[1]);
-// 			lcd::print(7, "%d", this->position[2]);
-// 		}
-
-// 		int turnTo(double degrees) {
-// 			if(!this->odomOn) return 1;
-// 			while(0 > degrees) {
-// 				degrees += 360;
-// 			}
-// 			while(degrees > 360){
-// 				degrees -= 360;
-// 			}
-// 			double radians = degrees * (M_PI / 180);
-// 			/*
-// 			change in theta = change in left - change in right / track width. Change in left = - change in right
-// 			so change in theta = -2* change in right / track width
-// 			so change in right = (change in theta * track width) / -2
-// 			or change in theta = 2 * change in left / track width
-// 			so change in left = (change in theta * track width) / 2
-// 			*/
-// 			double currentOrientation = (inertialSensor.get_yaw() * (M_PI / 180));
-
-// 			while(true) {
-// 				if(currentOrientation < radians - (5 * M_PI / 180)) {
-// 					this->isOriented = false;
-// 					double changeInRightSide = ((radians - currentOrientation) * this->trackWidth) / 2;
-// 					double changeInLeftSide = ((radians - currentOrientation) * this->trackWidth) / -2;
-// 					left_mg.move_voltage(changeInLeftSide);
-// 					right_mg.move_voltage(changeInRightSide);
-// 					currentOrientation = inertialSensor.get_yaw() * (M_PI / 180);
-// 				} else if(currentOrientation > radians + (5 * M_PI / 180)) {
-// 					this->isOriented = false;
-// 					double changeInRightSide = ((currentOrientation - radians) * this->trackWidth) / -2;
-// 					double changeInLeftSide = ((currentOrientation - radians) * this->trackWidth) / 2;
-// 					left_mg.move_voltage(changeInLeftSide);
-// 					right_mg.move_voltage(changeInRightSide);
-// 					currentOrientation = inertialSensor.get_yaw() * (M_PI / 180) ;
-// 				} else {
-// 					this->isOriented = true;
-// 				}
-// 				delay(10);
-// 			}
-// 		}
-
-
-// 		/** 
-// 		 * This function updates the position of our odom pod
-// 		 * */
-// 		int changeOdomPosition() {
-
-// 			vector<double> leftSideEncoders = left_mg.get_position_all();
-// 			vector<double> rightSideEncoders = right_mg.get_position_all();
-
-// 			// Get the average of the left side of the DT
-// 			double leftSideCurrentAvg = 0;
-// 			double leftSum = 0;
-// 			for(int i = 0; i < leftSideEncoders.size(); i++) {
-// 				leftSum += leftSideEncoders[i];
-// 			}
-// 			leftSideCurrentAvg = leftSum / leftSideEncoders.size();
-
-
-// 			// Get the average of the right side of the DT
-// 			double rightSideCurrentAvg = 0;
-// 			double rightSum = 0;
-// 			for(int i = 0; i < rightSideEncoders.size(); i++) {
-// 				rightSum += rightSideEncoders[i];
-// 			}
-// 			rightSideCurrentAvg = rightSum / rightSideEncoders.size();
-
-// 			// Get the change in the odom's position (divided by 100 since get_position() gives centidegrees which is just 100 times a degree)
-// 			double changeInOdom = ((odomP.get_position() - this->odomPPosition) / 100) * 2 * (M_PI/180);
-
-// 			// Get the actual differece in arc length of both the left and right sides averages compared to the last iteration
-// 			double differenceLeft = abs(leftSideCurrentAvg - this->leftAverage) * 3.25 * (M_PI / 180);
-// 			double differenceRight = abs(rightSideCurrentAvg - this->rightAverage) * 3.25 * (M_PI/180);
-
-// 			// Using the formula phetal = phetar + deltaL - deltaR/sL + sR, we find our new orientation
-// 			double currentAbsOrientation = this->position[2] + (differenceLeft - differenceRight)/this->trackWidth;
-
-// 			// Get the actual change in orientation
-// 			double changeInOrientation = currentAbsOrientation - this->position[2];
-
-// 			/*
-// 			This part checks to see if our orientation even changes
-// 			if it does, then we use a derived formula
-// 			If it doesn't then we just use one of the sides of the drivetrain to set to our local
-// 			x and y (these are the x and y's calculated relative to the bot and not the field)
-// 			*/
-// 			double localX;
-// 			double localY;
-// 			if(changeInOrientation != 0) {
-// 				localX = 2 * sin(changeInOrientation/2) * (changeInOdom/changeInOrientation);
-// 				localY = 2 * sin(changeInOrientation/2) * (differenceRight/changeInOrientation + 6.75);
-// 			} else {
-// 				localX = changeInOdom;
-// 				localY = differenceRight;
-// 			}
-
-// 			/*
-// 			The rest of this code converts from local to global position
-// 			First, we get the average orientation
-// 			Then we convert to polar cords using trigonometry, subtracting the average orientation from the angle in order to get global poses
-// 			Then convert back to cartesian
-// 			We then add these to the position attributes of the class
-// 			*/
-// 			double averageOrientation = this->position[2] + changeInOrientation / 2;
-
-// 			double polarRadius = sqrt(localX * localX + localY * localY);
-// 			double polarAngle = atan2(localY, localX) - averageOrientation;
-
-// 			while(0 > polarAngle){
-// 				polarAngle += M_PI * 2;
-// 			}
-
-// 			while(polarAngle > (M_PI * 2)) {
-// 				polarAngle -= M_PI * 2;
-// 			}
-
-// 			double globalX = polarRadius * cos(polarAngle);
-// 			double globalY = polarRadius * sin(polarAngle);
-
-// 			this->position[0] += globalX;
-// 			this->position[1] += globalY;
-// 			this->position[2] = currentAbsOrientation;
-
-// 			// Update all of the variables to the current (was previous)
-// 			this->leftAverage = leftSideCurrentAvg;
-// 			this->rightAverage = rightSideCurrentAvg;
-// 			this->odomPPosition = odomP.get_position();
-// 			return 1;
-// 		}
-
-// 		int changeBotPosition(double x, double y, double xErr, double yErr) {
-// 			if(!this->odomOn) return 1;
-// 			double targetRadius = sqrt(x * x + y * y);
-// 			double targetAngle = atan2(y, x);
-
-// 			double minRadiusX = x - xErr;
-// 			double maxRadiusX = x + xErr;
-// 			double minRadiusY = y - yErr;
-// 			double maxRadiusY = y + yErr;
-
-// 			double minRadius = sqrt(minRadiusX * minRadiusX + minRadiusY * minRadiusY);
-// 			double maxRadius = sqrt(maxRadiusX * maxRadiusX + maxRadiusY * maxRadiusY);
-
-// 			double currentRadius = sqrt(this->position[0] * this->position[0] + this->position[1] * this->position[1]);
-
-// 			Task turning(turnTo(targetAngle));
-
-// 			while(!this->isOriented) {
-// 				delay(10);
-// 			}
-
-// 			double integralS = 0;
-
-// 			while(true) {
-
-// 				double error = targetRadius - currentRadius;
-// 				if(error < 100 && error > -100) {
-// 					integralS += error;
-// 				}
-// 				double derivative = error - prevError;
-
-// 				double motorPower = (this->kP * error) + (kI * integralS) + (kD * derivative);
-// 				if(motorPower > 1) motorPower = 1;
-// 				if(motorPower < -1) motorPower = -1;
-
-// 				double slowRate = 0.05;
-// 				if(motorPower > this->prevMotorPower + slowRate) motorPower = prevMotorPower + slowRate;
-// 				if(motorPower < this->prevMotorPower - slowRate) motorPower =  prevMotorPower - slowRate;
-
-// 				left_mg.move_voltage(motorPower);
-
-// 				if(minRadius < currentRadius && currentRadius < maxRadius) break;
-
-// 				this->prevError = error;
-// 				this->prevMotorPower = motorPower;
-// 				currentRadius = sqrt(this->position[0] * this->position[0] + this->position[1] * this->position[1]);
-// 				delay(10);
-// 			}
-// 			return 1;
-// 		}
-// };
+			this->distanceTraveled = 0;
+			turnCount = 0;
+			moveCount = 0;
+		}
+		
 
 
 
+		
+		int changeOdomPosition() {
+			vector<double> leftSideEncoders = left_mg.get_position_all();
+			vector<double> rightSideEncoders = right_mg.get_position_all();
+
+			// Get the average of the left side of the DT
+			double leftSideCurrentAvg = 0;
+			double leftSum = 0;
+			for(int i = 0; i < leftSideEncoders.size(); i++) {
+				leftSum += leftSideEncoders[i];
+			}
+			leftSideCurrentAvg = leftSum / leftSideEncoders.size();
+			double differenceLeft = leftSideCurrentAvg - this->oldL;
+			this->oldL = leftSideCurrentAvg;
+
+
+			differenceLeft = differenceLeft/360 * 3.25 * M_PI * 0.75;
+			// Get the average of the right side of the DT
+			double rightSideCurrentAvg = 0;
+			double rightSum = 0;
+			for(int i = 0; i < rightSideEncoders.size(); i++) {
+				rightSum += rightSideEncoders[i];
+			}
+			rightSideCurrentAvg = rightSum / rightSideEncoders.size();
+			double differenceRight = rightSideCurrentAvg - this->oldR;
+			this->oldR = rightSideCurrentAvg;
+
+
+			differenceRight = differenceRight/360 * 3.25 * M_PI * 0.75;
+			// Get the change in the odom's position (divided by 100 since get_position() gives centidegrees which is just 100 times a degree)
+			// double changeInOdom = 0.00000001 * 2 * (M_PI/180);
+
+			// Get the actual differece in arc length of both the left and right sides averages compared to the last iteration
+			
+
+			// Using the formula phetal = phetar + deltaL - deltaR/sL + sR, we find our new orientation
+			
+			double theta = (differenceLeft - differenceRight) / 12.84;
+
+			double displacement = (differenceRight + differenceLeft) / 2;
+			this->distanceTraveled += displacement;
+
+			if(theta != 0) {
+				double arcDistance = 2 * (displacement / theta) * sin(theta / 2);
+				double angle = this->position[2] + theta / 2 * 180 / M_PI;
+				this->position[0] += arcDistance * sin(angle * M_PI / 180);
+				this->position[1] += arcDistance * cos(angle * M_PI / 180);
+			} else {
+				this->position[0] += displacement * sin(this->position[2] * M_PI / 180);
+				this->position[1] += displacement * cos(this->position[2] * M_PI / 180);
+			}
+
+
+			/*
+			This part checks to see if our orientation even changes
+			if it does, then we use a derived formula
+			If it doesn't then we just use one of the sides of the drivetrain to set to our local
+			x and y (these are the x and y's calculated relative to the bot and not the field)
+			*/
+			// double localX;
+			// double localY;
+			// if(changeInOrientation != 0) {
+			// 	localX = 2 * sin(changeInOrientation/2) * (changeInOdom/changeInOrientation);
+			// 	localY = 2 * sin(changeInOrientation/2) * (differenceRight/changeInOrientation + 6.75);
+			// } else {
+			// 	localX = changeInOdom;
+			// 	localY = differenceRight;
+			// }
+
+			/*
+			The rest of this code converts from local to global position
+			First, we get the average orientation
+			Then we convert to polar cords using trigonometry, subtracting the average orientation from the angle in order to get global poses
+			Then convert back to cartesian
+			We then add these to the position attributes of the class
+			*/
+			// double averageOrientation = this->position[2] + changeInOrientation / 2;
+
+			// double polarRadius = sqrt(localX * localX + localY * localY);
+			// double polarAngle = atan2(localY, localX) - averageOrientation;
+
+			// while(0 > polarAngle){
+			// 	polarAngle += M_PI * 2;
+			// }
+
+			// while(polarAngle > (M_PI * 2)) {
+			// 	polarAngle -= M_PI * 2;
+			// }
+
+			this->position[2] = inertialSensor.get_rotation();
+			return 1;
+		}
+
+		void resetOdom() {
+			right_mg.set_zero_position_all(0);
+			left_mg.set_zero_position_all(0);
+
+			inertialSensor.set_rotation(0);
+
+			this->position[0] = 0;
+			this->position[1] = 0;
+			this->position[2] = 0;
+		}
+
+
+		void turnTo(double direction) {
+			delay(20);
+			this->tracking = false;
+			this->integral = 0;
+			this->desiredAngle = direction;
+		}
+
+		int changeBotPosition(double x, double y, int waitTime = 0, double xError = 1.0, double yError = 1.0, bool stop = true, bool w = true) {
+			this->x = x;
+			this->y = y;
+			this->xError = xError;
+			this->yError = yError;
+			this->stop = stop;
+			this->percent = 0;
+
+			double dx = this->x - this->position[0];
+			double dy = this->y - this->position[1];
+			this->originalDistance = sqrt(dx * dx + dy * dy);
+			delay(20);
+			this->tracking = true;
+			this->positioned = false;
+
+			if(waitTime != 0) {
+				delay(waitTime);
+			} else {
+				while(w) {
+					if(this->positioned) {
+						break;
+					}
+					delay(1);
+				}
+			}
+
+			this->originalDistance = 1;
+			this->percent = 100;
+			this->desiredAngle = this->position[2];
+			this->tracking = false;
+		}
+
+		void changeSpeed(double newMax = 1) {
+			this->maxSpeed = newMax;
+		}
+
+		void turning() {
+			double error = this->desiredAngle - this->position[2];
+
+			double kP = 0.06;
+			double kI = 0.00001;
+			if(turnCount == 0) {
+				this->integral = 0;
+			}
+			double kD = 1.5;
+			turnCount = 1;
+
+			if(this->tracking) {
+				this->desiredAngle = this->position[2] + this->updatingError;
+			}
+			double lastError = error;
+			error = this->desiredAngle - this->position[2];
+
+			double proportional = kP * error;
+			this->integral += kI * integral * 0.0001;
+			double derivative = kD * (error - lastError);
+			if(this->tracking) {
+				derivative *= fmax(this->originalDistance/10, 1);
+			}
+
+			if(-0.4 < error && error < 0.4) {
+				this->angled = true;
+				this->integral = 0;
+				this->turnSpeed = 0;
+			} else {
+				this->angled = false;
+				double newSpeed = proportional + this->integral + derivative;
+				if(abs(this->turnSpeed - newSpeed) > 0.5) {
+					newSpeed = (newSpeed + this->turnSpeed)/2;
+				}
+				this->turnSpeed = newSpeed;
+				if(this->tracking) {
+					this->turnSpeed *= 0.95;
+				}
+			}
+		}
+
+		void moveTo() {
+			double error = 0;
+			double kP = 0.15;
+			double kI = 0.034;
+			if(moveCount == 0) {
+				this->integral = 0;
+			}
+			double kD = 5.1;
+
+			double oldDist = 0;
+
+			double dx = this->x - this->position[0];
+			double dy = this->y - this->position[1];
+			oldDist = this->originalDistance;
+			
+			
+
+			int quadrant = 1;
+		
+			if((0 <= this->position[2] && this->position[2] <= 90) || (-360 <= this->position[2] && this->position[2] <= -270)) {
+				quadrant = 1;
+			} else if ((90 <= this->position[2] && this->position[2] <= 180) || (-270 <= this->position[2] && this->position[2] <= -180)) {
+				quadrant = 2;
+			} else if ((180 <= this->position[2] && this->position[2] <= 270) || (-180 <= this->position[2] && this->position[2] <= -90)) {
+				quadrant = 3;
+			} else if((270 <= this->position[2] && this->position[2] <= 360) || (-90 <= this->position[2] && this->position[2] <= 0)) {
+				quadrant = 4;
+			}
+
+			dx = this->x - this->position[0];
+			dy = this->y - this->position[1];
+
+			int driveDir = -1;
+			error = 0;
+
+			if(abs(dx) <= abs(dy)) {
+				if(quadrant == 1 || quadrant == 4) {
+					if (dy > 0){
+						driveDir = -1;
+					} else {
+						driveDir = 1;
+					}
+				} else if (quadrant == 2 || quadrant == 3) {
+					if (dy > 0) {
+						driveDir = 1;
+					} else {
+						driveDir = -1;
+					}
+				}
+			} else {
+				if(quadrant == 1 || quadrant == 4) {
+					if (dx > 0){
+						driveDir = -1;
+					} else {
+						driveDir = 1;
+					}
+				} else if (quadrant == 2 || quadrant == 3) {
+					if (dx > 0) {
+						driveDir = 1;
+					} else {
+						driveDir = -1;
+					}
+				}
+			}
+
+			if(dy != 0) {
+				error = atan(dx/dy)*180/M_PI - this->position[2];
+				double errorTwo = 0;
+
+				if(dx >= 0 && dy >= 0) {
+					if(this->position[2] > 0) {
+						errorTwo = error;
+					} else {
+						errorTwo = -360 + error;
+					}
+				} else if(dx > 0 && dy < 0) {
+					if(this->position[2] > 0) {
+						errorTwo = 180 + error;
+					} else {
+						errorTwo = -180 + error;
+					}
+				} else if(dx < 0 && dy < 0) {
+					if(this->position[2] > 0) {
+						errorTwo = 180 + error;
+					} else {
+						errorTwo = -180 + error;
+					}
+				} else if (dx < 0 && dy > 0) {
+					if(this->position[2] < 0) {
+						errorTwo = error;
+					} else { 
+						errorTwo = 360 + error;
+					}
+				}
+
+				if(abs(this->position[2] - error) > abs(this->position[2] - errorTwo)) {
+					error = errorTwo;
+				}
+			} else {
+				error = 0;
+			}
+
+			double dist = sqrt(dx * dx + dy * dy);
+
+
+			double proportional = kP * dist;
+			this->integral += kI * dist * 0.001;
+			double derivative = kD * (dist - oldDist) * 0.001 * -1;
+
+			if(this->stop && this->positioned) {
+				if(!this->curving) {
+					this->motorSpeed = 0;
+				}
+				integral = 0;
+			} else {
+				this->percent = (dist/this->originalDistance);
+				if(this->turnSwitch) {
+					this->updatingError = error;
+				} else {
+					this->updatingError = 0;
+				}
+
+				if(this->tracking && !this->curving) {
+					this->motorSpeed = proportional + integral + derivative - (fmin((error/10 * this->percent), 0) * int(this->turnSwitch));
+					if(this->motorSpeed > this->maxSpeed) {
+						this->motorSpeed = this->maxSpeed;
+					}
+					this->motorSpeed *= driveDir * -1;
+				}
+			}
+
+			if(abs(this->position[0] - this->x) < this->xError && abs(this->position[1] - this->y) < this->yError) {
+				this->positioned = true;
+			} else {
+				this->positioned = false;
+			}
+		}
+		void drive() {
+			if(this->odomOn) {
+				right_mg.move_voltage(this->motorSpeed - this->turnSpeed);
+				left_mg.move_voltage(this->motorSpeed + this->turnSpeed);
+			}
+		}
+		void mode(bool on, bool turnSwitch = true) {
+			this->odomOn = on;
+			this->turnSwitch = turnSwitch;
+		}
+};
+
+
+odom* odomPod = new odom();
+
+
+void odom_task_fn() {
+    while (true) {
+		odomPod->changeOdomPosition();
+		delay(10);
+    }
+}
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.
@@ -294,9 +455,13 @@ IMU inertialSensor(15);
  */
 void initialize() {
 	lcd::initialize();
-	lcd::print(0, "code uploaded");
+	lcd::print(0, "code");
 	right_mg.set_encoder_units_all(E_MOTOR_ENCODER_DEGREES);
 	left_mg.set_encoder_units_all(E_MOTOR_ENCODER_DEGREES);
+	inertialSensor.reset();
+	while(inertialSensor.is_calibrating()) {
+		delay(10);
+	}
 }
 
 /**
@@ -315,14 +480,7 @@ void disabled() {}
  * This task will exit when the robot is enabled and autonomous or opcontrol
  * starts.
  */
-void competition_initialize() {
-	//odomPod.resetBotPosition();
-	//odomPod.setOdomOn(true);
-	inertialSensor.reset();
-	while(inertialSensor.is_calibrating()) {
-		delay(10);
-	}
-}
+void competition_initialize() {}
 
 /*While the odom is off, this code will move the bot forward or backward
   depending on a value between -1 and 1 using the autonomous function 
@@ -370,75 +528,41 @@ void passiveInExtake(int param){
 		intake.move_velocity(-400);
 	}
 }
+void onAuton1() {
+	right_mg.set_brake_mode_all(E_MOTOR_BRAKE_BRAKE);
+	left_mg.set_brake_mode_all(E_MOTOR_BRAKE_BRAKE);
+	delay(10);
 
 
-void testing() {
-	// odom odomPod();
-	//Right autonomous
-	// passiveMove(1);
-	// delay(800);
-	// passiveMove(0);
-	// passiveMove(2)  ;
-	// delay(300);
-	// passiveInExtake(1);
-	// passiveMove(0);
-	// passiveMove(1);
-	// delay(500);
-	// passiveInExtake(0);
-	// passiveMove(0);
-	// delay(500);
-	// passiveMove(-2);
-	// delay(450);
-	// passiveMove(0);
-	// passiveMove(1);
-	// delay(500);
-	// passiveMove(0);
-	// passiveInExtake(-1);
+	odomPod->resetOdom();
+	odomPod->changeBotPosition(0, 10, 0, 1, 1, true, true);
 
-	//left autonomous
-	passiveMove(1);
-	delay(750);
-	passiveMove(0);
-	passiveMove(-2)  ;
-	delay(150);
-	passiveMove(0);
-	delay(200);
-	passiveInExtake(1);
-	passiveMove(3);
-	delay(400);
-	passiveMove(1);
-	delay(250);
-	passiveMove(0);
-	delay(500);
-	//600 delay = 180 turn
-	passiveMove(-2);
-	delay(470);
-	passiveMove(0);
-	passiveMove(1);
-	delay(800);
-	passiveMove(0);
-	passiveMove(2);
-	delay(500);
-	passiveMove(1);
-	delay(300);
-	passiveMove(2);
-	delay(1000);//780
-	passiveMove(-1);
-	delay(600);
-	passiveMove(0);
-	passiveInExtake(-1);
-	delay(300);
-	passiveInExtake(1);
-	thirdStageIntake.move_velocity(-200);
-	
-	
+
+	delay(1000);
+	right_mg.set_brake_mode_all(E_MOTOR_BRAKE_COAST);
+	left_mg.set_brake_mode_all(E_MOTOR_BRAKE_COAST);
 }
-// void on_auton_1() {
-// 	while(true) {
-// 		odomPod.changeOdomPosition();
-// 		delay(5);
-// 	}
-// }
+
+void startDrive() {
+	while(true) {
+		odomPod->drive();
+		delay(1);
+	}
+}
+
+void startTurn() {
+	while(true) {
+		odomPod->turning();
+		delay(1);
+	}
+}
+
+void startMove() {
+	while(true) {
+		odomPod->moveTo();
+		delay(1);
+	}
+}
 /**
  * Runs the user autonomous code. This function will be started in its own task
  * with the default priority and stack size whenever the robot is enabled via
@@ -451,12 +575,18 @@ void testing() {
  * from where it left off.
  */
 void autonomous() {
-	//Task updateOdom(on_auton_1);
-	Task test(testing);
-	// while(true) {
-	// 	odomPod.printPose();
-	// 	delay(20);
-	// }
+	Task odomTask(odom_task_fn);
+	Task odomTask1(startDrive);
+	Task odomTask2(startMove);
+	Task odomTask3(startTurn);
+	onAuton1();
+	while(is_autonomous()) {
+		delay(10);
+	}
+	odomTask.remove();
+	odomTask1.remove();
+	odomTask2.remove();
+	odomTask3.remove();
 }
 
 void movePistons() {
@@ -470,6 +600,7 @@ void movePistons() {
 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_B)){
 			wingPiston.toggle();
 		}
+		delay(10);
 	}
 }
 
@@ -478,16 +609,16 @@ void movePistons() {
 // Brody (backup driver) was used to one-stick, but after practice, he got used to and liked two stick better
 void moveMotors() {
 	while(true) {
-		int rightStickValueX = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
-		int rightStickValueY = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_Y);
-		int leftStickValueX = master.get_analog(E_CONTROLLER_ANALOG_LEFT_X);
-		int leftStickValueY = master.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
+		double rightStickValueX = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
+		double rightStickValueY = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_Y);
+		double leftStickValueX = master.get_analog(E_CONTROLLER_ANALOG_LEFT_X);
+		double leftStickValueY = master.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
 
-		right_mg.move_velocity(leftStickValueY - rightStickValueX);
-		left_mg.move_velocity(leftStickValueY + rightStickValueX);
+		right_mg.move(leftStickValueY - rightStickValueX);
+		left_mg.move(leftStickValueY + rightStickValueX);
 
 		// To prevent the program from crashing
-		pros::Task::delay(5);
+		pros::Task::delay(10);
 	}
 }
 
@@ -539,325 +670,3 @@ void opcontrol() {
 	Task movingIntake(moveIntake);
 	Task pneuTask(movePistons);
 }
-// /*This code allows us to test the functions that we make so that 
-//   we can see the real time effectiveness*/
-// void testing() {
-// 	odomPod.setOdomOn(false);
-// 	//Right autonomous
-// 	// passiveMove(1);
-// 	// delay(800);
-// 	// passiveMove(0);
-// 	// passiveMove(2)  ;
-// 	// delay(200);
-// 	// passiveInExtake(1);
-// 	// passiveMove(0);
-// 	// passiveMove(1);
-// 	// delay(300);
-// 	// passiveInExtake(0);
-// 	// passiveMove(0);
-// 	// delay(500);
-// 	// passiveMove(-2);
-// 	// delay(440);
-// 	// passiveMove(0);
-// 	// passiveMove(1);
-// 	// delay(220);
-// 	// passiveMove(0);
-// 	// trapDoor1.toggle;
-// 	// passiveInExtake(-1);
-// 	//left autonomous
-// 	passiveMove(1);
-// 	delay(800);
-// 	passiveMove(0);
-// 	passiveMove(-2)  ;
-// 	delay(200);
-// 	passiveInExtake(1);
-// 	passiveMove(0);
-// 	passiveMove(1);
-// 	delay(300);
-// 	passiveInExtake(0);
-// 	passiveMove(0);
-// 	delay(500);
-// 	passiveMove(2);
-// 	delay(440);
-// 	passiveMove(0);
-// 	passiveMove(1);
-// 	delay(220);
-// 	passiveMove(0);
-// 	topPiston.toggle();
-// 	delay(600);
-// 	passiveInExtake(1);
-
-
-//  	// for(int i = 0; i < 4; i++){
-// 	// 	passiveMove(-1);
-// 	// 	delay(200);
-// 	// 	passiveMove(0);
-// 	// 	passiveMove(1);
-// 	// 	delay(200);
-// 	// 	passiveMove(0);
-// 	// }
-// 	// passiveMove(-1);
-// 	// delay(200);
-// 	// passiveMove(0);
-// 	// scraperMech1.toggle();
-// 	// passiveMove(2);
-// 	// delay(1000);
-	
-
-// }
-
-// void on_auton_1() {
-// 	while(true) {
-// 		odomPod.changeOdomPosition();
-// 		delay(5);
-// 	}
-// }
-// /**
-//  * Runs the user autonomous code. This function will be started in its own task
-//  * with the default priority and stack size whenever the robot is enabled via
-//  * the Field Management System or the VEX Competition Switch in the autonomous
-//  * mode. Alternatively, this function may be called in initialize or opcontrol
-//  * for non-competition testing purposes.
-//  *
-//  * If the robot is disabled or communications is lost, the autonomous task
-//  * will be stopped. Re-enabling the robot will restart the task, not re-start it
-//  * from where it left off.
-//  */
-// void autonomous() {
-// 	Task updateOdom(on_auton_1);
-// 	Task test(testing);
-// 	while(true) {
-// 		odomPod.printPose();
-// 		delay(20);
-// 	}
-// }
-
-// /*
-// These variables are the main part of the logic of the drivetrain
-// Allows us to easily swap between two-stick and one stick
-// Brody prefers one-stick whereas Anthony prefers two-stick.
-// oneOrTwo variable: One = true, two = false
-// rightOrLeft variable: Right = true, left = false
-// */
-// bool rightOrLeft = true;
-// bool oneOrTwo = false;
-
-// // Because rightOrLeft will not be constant, we cannot rely on it for when we switch back to the original.
-// // So, this variable is made to hold the original value
-// bool defaultRight = rightOrLeft;
-
-// /**
-//  * This function is its own independent event. It changes the global rightOrLeft value to true if and only if
-//  * the user has the oneStick option enabled
-//  */
-// void rightButtonPressed() {
-// 	while(true) {
-// 		if(oneOrTwo) {
-// 			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_RIGHT)) {
-// 				//lcd::print(5, "rightButtonPressed");
-// 				rightOrLeft = true;
-// 			}
-// 		}
-// 		delay(2);
-// 	}
-// }
-// //Same as the rightbuttonPressed() method except it changes the rightOrLeft variable to false
-// void leftButtonPressed() {
-// 	while(true) {
-// 		if(oneOrTwo) {	
-// 			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_LEFT)) {
-// 				//lcd::print(6, "Left Button Pressed");
-// 				rightOrLeft = false;
-// 			}
-// 		}
-// 		delay(3);
-// 	}
-// }
-
-
-// // Also an independent event like the previous 2 methods
-// void bButtonPressed() {
-// 	while(true) {
-// 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_B)) {
-// 			//lcd::print(2, "B Button Pressed");
-// 			oneOrTwo = !oneOrTwo;
-// 			if(oneOrTwo == false) {
-// 				rightOrLeft = defaultRight;
-// 			}
-// 			//lcd::print(4, "One stick active: %d", oneOrTwo);
-// 		}
-// 		delay(1);
-// 	}
-// }
-
-// // This method is dependent upon the button input from the bButtonPressed(), leftButtonPressed(), and rightButtonPressed() methods
-// void moveMotors() {
-// 	while(true) {
-// 		int rightStickValueX = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
-// 		int rightStickValueY = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_Y);
-// 		int leftStickValueX = master.get_analog(E_CONTROLLER_ANALOG_LEFT_X);
-// 		int leftStickValueY = master.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
-
-// 		// This switch statement handles all of the button logic : it moves our drivetrain based on this logic
-// 		switch(oneOrTwo) {
-// 			case true:
-// 				if(rightOrLeft == true) {
-// 					right_mg.move_velocity(rightStickValueY - rightStickValueX);
-// 					left_mg.move_velocity(rightStickValueY + rightStickValueX);
-// 				}
-// 				else {
-// 					right_mg.move_velocity(leftStickValueY - leftStickValueX);
-// 					left_mg.move_velocity(leftStickValueY + leftStickValueX);
-// 				}
-// 				break;
-// 			case false:
-// 				right_mg.move_velocity(leftStickValueY - rightStickValueX);
-// 				left_mg.move_velocity(leftStickValueY + rightStickValueX);
-// 		}
-
-// 		// To prevent the program from crashing
-// 		pros::Task::delay(4);
-// 	}
-// }
-
-// /**
-//  * These tasks are nested to allow our intake to be able to move at the same time that our drivetrain moves
-//  * (that is, the different tasks inside these functions are the drivetrain's logic)
-//  */
-// void moveDriveTrain() {
-// 	Task bButtonPress(bButtonPressed);
-// 	Task rightButtonPress(rightButtonPressed);
-// 	Task leftButtonPress(leftButtonPressed);
-// 	Task moveMotor(moveMotors);
-// }
-
-// bool stageOn = true;
-// void switchStage(){
-// 	while(true){
-// 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_UP)){
-// 			stageOn = !stageOn;
-// 		}
-// 		delay(8);
-// 	}
-// }
-// /**
-//  * This allows moving the drivetrain to be asynchronous with moving the intake
-//  * by using two different tasks in the opcontrol() function
-//  */
-// void moveIntake() {
-// 	while(true) {
-// 		if(master.get_digital(E_CONTROLLER_DIGITAL_L1)) {
-// 			intake.move_velocity(400);
-// 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_R1)) {
-// 			intake.move_velocity(-400);
-// 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_L2)) {
-// 			if(stageOn == true){
-// 				firstStageIntake.move_velocity(400);
-// 			} else {
-// 				secondStageIntake.move_velocity(400);
-// 			}
-// 		} else {
-// 			intake.move_velocity(0);
-// 		}
-// 		pros::Task::delay(5);
-// 	}
-// }
-
-// // void hoodIntake1() {
-// // 	while(true) {
-// // 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_R2)) {
-// // 			trapDoor1.toggle();
-// // 		}
-// // 		delay(6);
-// // 	}
-// // }
-
-// // void scraperMechF() {
-// // 	while(true) {
-// // 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_A)) {
-// // 			scraperMech1.toggle();
-// // 		}
-// // 		delay(7);
-// // 	}
-// // }
-
-// /**
-//  * Runs the operator control code. This function will be started in its own task
-//  * with the default priority and stack size whenever the robot is enabled via
-//  * the Field Management System or the VEX Competition Switch in the operator
-//  * control mode.
-//  *
-//  * If no competition control is connected, this function will run immediately
-//  * following initialize().
-//  *
-//  * If the robot is disabled or communications is lost, the
-//  * operator control task will be stopped. Re-enabling the robot will restart the
-//  * task, not resume it from where it left off.
-//  */
-// // void opcontrol() { 
-// // 	lcd::print(1, "Intake task working");
-// // 	Task movingDT(moveDriveTrain);
-// // 	Task movingIntake(moveIntake);
-// // 	Task hoodIntake(hoodIntake1);
-// // 	Task scraperMech(scraperMechF);
-// // 	Task stage(switchStage);
-// // }
-
-// /*
-// movement type (boolean, true = one stick, false = two stick)
-// right stick or left stick (boolean, true = right stick, false = left stick)
-
-// if(b button new press) then
-// 	one or two stick = opposite of its current value
-// if(one or two stick == one stick) then
-// 	if(left button new press) then
-// 		right stick or left stick = left
-// 	if(right button new press) then 
-// 		right stick or left stick = right
-// */
-
-// // void opcontrol() {
-// // 	bool oneOrTwo = true;
-// // 	bool rightOrLeft = true;
-// // 	bool initOneOrTwo = oneOrTwo;
-// // 	while(true) {
-// // 		int turnRight = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_X);
-// // 		int dirLeft = master.get_analog(E_CONTROLLER_ANALOG_LEFT_Y);
-// // 		int turnLeft = master.get_analog(E_CONTROLLER_ANALOG_LEFT_X);
-// // 		int dirRight = master.get_analog(E_CONTROLLER_ANALOG_RIGHT_Y);
-
-// // 		if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_B)) {
-// // 			oneOrTwo = !oneOrTwo;
-// // 			if(oneOrTwo == false) {
-// // 				rightOrLeft = initOneOrTwo;
-// // 			}
-// // 		}
-
-// // 		if(oneOrTwo) {
-// // 			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_LEFT)) {
-// // 				rightOrLeft = false;
-// // 			}
-// // 			if(master.get_digital_new_press(E_CONTROLLER_DIGITAL_RIGHT)) {
-// // 				rightOrLeft = true;
-// // 			}
-// // 		}
-
-// // 		switch(oneOrTwo) {
-// // 			case true:
-// // 				if(rightOrLeft == true) {
-// // 					right_mg.move_velocity(dirRight - turnRight);
-// // 					left_mg.move_velocity(dirRight + turnRight);
-// // 				}
-// // 				else {
-// // 					right_mg.move_velocity(dirLeft - turnLeft);
-// // 					left_mg.move_velocity(dirLeft + turnLeft);
-// // 				}
-// // 				break;
-// // 			case false:
-// // 				right_mg.move_velocity(dirLeft - turnRight);
-// // 				left_mg.move_velocity(dirLeft + turnRight);
-
-// // 		}
-// // 		pros::Task::delay(5);
-// // 	}
-// // }
