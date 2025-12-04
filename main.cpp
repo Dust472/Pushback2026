@@ -264,7 +264,7 @@ class odom {
 			error = this->desiredAngle - this->position[2];
 
 			double proportional = kP * error;
-			this->integral += kI * integral * 0.0001;
+			this->integral += kI * error * 0.0001;
 			double derivative = kD * (error - lastError);
 			if(this->tracking) {
 				derivative *= fmax(this->originalDistance/10, 1);
