@@ -629,18 +629,43 @@ void moveMotors() {
  * by using two different tasks in the opcontrol() function
  */
 void moveIntake() {
+	int targetVel = 200;
 	while(true) {
 		if(master.get_digital(E_CONTROLLER_DIGITAL_L1)) {
-			intake.move_velocity(200);
+			intake.move_velocity(targetVel);
+			//Unjam check
+			if(firstStageIntake.get_actual_velocity() < targetVel/5){
+				delay(750);
+				if(firstStageIntake.get_actual_velocity() < targetVel/5){
+					intake.move_velocity(-targetVel);
+					delay(500);
+				}
+			}
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_L2)) {
-			intake.move_velocity(-200);
-			thirdStageIntake.move_velocity(200);
+			intake.move_velocity(-targetVel);
+			thirdStageIntake.move_velocity(targetVel);
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_R1)) {
-			intake.move_velocity(200);
+			intake.move_velocity(targetVel);
+			//Unjam check
+			if(firstStageIntake.get_actual_velocity() < targetVel/5){
+				delay(750);
+				if(firstStageIntake.get_actual_velocity() < targetVel/5){
+					intake.move_velocity(-targetVel);
+					delay(500);
+				}
+			}
 			topPiston.retract();
 		} else if(master.get_digital(E_CONTROLLER_DIGITAL_R2)) {
-			thirdStageIntake.move_velocity(-200);
-			intake.move_velocity(200);
+			thirdStageIntake.move_velocity(-targetVel);
+			intake.move_velocity(targetVel);
+			//Unjam check
+			if(firstStageIntake.get_actual_velocity() < targetVel/5){
+				delay(750);
+				if(firstStageIntake.get_actual_velocity() < targetVel/5){
+					intake.move_velocity(-targetVel);
+					delay(500);
+				}
+			}
 			topPiston.extend();
 		} else {
 			intake.move_velocity(0);
