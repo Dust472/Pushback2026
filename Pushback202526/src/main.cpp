@@ -112,7 +112,15 @@ void driverControlThreadOne() {
 }
 
 void whenL1Pressed() {
-  
+  firstStage.spin(forward, 5.5, volt);
+  secondStage.spin(forward, 11, volt);
+  thirdStage.spin(reverse, 5.5, volt);
+}
+
+void whenL1Released() {
+  firstStage.spin(forward, 0, volt);
+  secondStage.spin(forward, 0, volt);
+  thirdStage.spin(forward, 0, volt);
 }
 
 void driverControlThreadThree() {
@@ -129,6 +137,7 @@ void driverControlThreadFour() {
 
 void usercontrol(void) {
   botController.ButtonL1.pressed(whenL1Pressed);
+  botController.ButtonL1.released(whenL1Released);
   thread moveFunctionality = thread(driverControlThreadOne);
   thread colorSortingFunct = thread(driverControlThreadThree);
   thread doubleParkingFunct = thread(driverControlThreadFour);
