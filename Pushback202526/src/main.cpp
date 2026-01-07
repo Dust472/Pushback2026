@@ -117,11 +117,36 @@ void whenL1Pressed() {
   thirdStage.spin(reverse, 5.5, volt);
 }
 
-void whenL1Released() {
+void whenL1Released(){
+  firstStage.spin(forward, 0, volt);
+  secondStage.spin(forward, 0, volt);
+  thirdStage.spin(reverse, 0, volt);
+}
+
+void whenL2Pressed() {
+  firstStage.spin(reverse, 5.5, volt);
+  secondStage.spin(reverse, 11, volt);
+  thirdStage.spin(forward, 5.5, volt);
+}
+
+void whenL2Released(){
+  firstStage.spin(reverse, 0, volt);
+  secondStage.spin(reverse, 0, volt);
+  thirdStage.spin(forward, 0, volt);
+}
+
+void whenR2Pressed() {
+  firstStage.spin(forward, 5.5, volt);
+  secondStage.spin(forward, 11, volt);
+  thirdStage.spin(forward, 5.5, volt);
+}
+
+void whenR2Released() {
   firstStage.spin(forward, 0, volt);
   secondStage.spin(forward, 0, volt);
   thirdStage.spin(forward, 0, volt);
 }
+
 
 void driverControlThreadThree() {
   while(10) {
@@ -138,6 +163,10 @@ void driverControlThreadFour() {
 void usercontrol(void) {
   botController.ButtonL1.pressed(whenL1Pressed);
   botController.ButtonL1.released(whenL1Released);
+  botController.ButtonL2.pressed(whenL2Pressed);
+  botController.ButtonL2.released(whenL2Released);
+  botController.ButtonR1.pressed(whenR2Pressed);
+  botController.ButtonR2.released(whenR2Released);
   thread moveFunctionality = thread(driverControlThreadOne);
   thread colorSortingFunct = thread(driverControlThreadThree);
   thread doubleParkingFunct = thread(driverControlThreadFour);
