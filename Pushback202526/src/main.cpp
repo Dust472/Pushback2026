@@ -7,10 +7,12 @@
 /*                                                                            */
 /*----------------------------------------------------------------------------*/
 
+#include <vector>
+
 #include "vex.h"
 
+
 using namespace vex;
-using namespace std;
 
 // A global instance of competition
 competition Competition;
@@ -20,13 +22,13 @@ Motors and other physical parts of the bot
 Left drivetrain ports: 1 (reversed), 2 (reversed), 3
 Right drivetrain ports: 18, 19, 20 (reversed)
 */ 
-motor leftSide1 = motor(PORT1); // This motor doesn't have a boolean because the default value of the boolean is false
-motor leftSide2 = motor(PORT2);
-motor leftSide3 = motor(PORT3, true); 
+motor leftSide1 = motor(PORT1, ratio6_1, true); // This motor doesn't have a boolean because the default value of the boolean is false
+motor leftSide2 = motor(PORT2, ratio6_1, true);
+motor leftSide3 = motor(PORT3, ratio6_1, true); 
 
 motor rightSide1 = motor(PORT18, ratio6_1);
 motor rightSide2 = motor(PORT19, ratio6_1);
-motor rightSide3 = motor(PORT20, ratio6_1, true);
+motor rightSide3 = motor(PORT20, ratio6_1);
 
 // Put both left side motors and right side motors in their respective motorgroups
 motor_group rightSideDT = motor_group(rightSide1, rightSide2, rightSide3);
@@ -39,18 +41,104 @@ motor thirdStage = motor(PORT10, true);
 // Optical, Distance, Rotation, Inertia Sensors
 optical colorSensor = optical(PORT5);
 rotation horizontalOdom = rotation(PORT6);
-rotation verticalOdom = rotation(PORT13);
 inertial inertialSensor = inertial(PORT7);
-distance distanceSensor = distance(PORT11);
+distance disSensor = distance(PORT11);
 
 // Pneumatics
 brain botBrain;
 digital_out doubleParkSolenoid = digital_out(botBrain.ThreeWirePort.A);
+bool doubleParkMechExtended = false;
 digital_out wingSolenoid = digital_out(botBrain.ThreeWirePort.B);
+bool wingMech = false;
 digital_out scraperSolenoid = digital_out(botBrain.ThreeWirePort.C);
+bool scraperMech = false;
 
 controller botController;
 
+class odom {
+  private:
+    std::vector<double> position;
+    double oldRightAvg;
+    double oldLeftAvg;
+    double totalRightDist;
+    double totalLeftDist;
+  public:
+    odom() {
+      position[0] = 0;
+      position[1] = 0;
+      position[2] = 0;
+      oldRightAvg = 0;
+      oldLeftAvg = 0;
+      totalRightDist = 0;
+      totalLeftDist = 0;
+    }
+    
+    // This updates the robot's orientation and position
+    void updatePos() {
+      while(10) {
+        std::vector<double> rightSideEncoderPositions = {rightSide1.position(degrees), rightSide2.position(degrees), rightSide3.position(degrees)};
+        std::vector<double> leftSideEncoderPositions = {leftSide1.position(degrees), leftSide2.position(degrees), leftSide3.position(degrees)};
+
+        double rightSideAverage = 0;
+        double leftSideAverage = 0;
+
+        double trackWidth = 12.5;
+        double rightSum = 0;
+        double leftSum = 0;
+
+        for(int i = 0; i < 3; i++) {
+          rightSum += rightSideEncoderPositions[i];
+          leftSum += leftSideEncoderPositions[i];
+        }
+        rightSideAverage = (rightSum / 3) * M_PI / 180 * 3.25; 
+        leftSideAverage = (leftSum / 3) * M_PI / 180 * 3.25; 
+
+        double horizontalTWDistance = horizontalOdom.position(degrees) * M_PI / 180 * 2;
+
+        double changeInLeft = rightSideAverage - oldRightAvg;
+        double changeInRight = leftSideAverage - oldLeftAvg;
+        
+        oldRightAvg = rightSideAverage;
+        oldLeftAvg = leftSideAverage;
+
+        totalRightDist += changeInRight;
+        totalLeftDist += changeInLeft;
+
+        double absoluteOrientation = position[2] + (totalRightDist + totalLeftDist) / trackWidth;
+        double changeInTheta = absoluteOrientation - position[2];
+        double averageOrientation = position[2] + (changeInTheta / 2);
+        position[2] = absoluteOrientation;
+
+        double localXOffset = 0;
+        double localYOffset = 0;
+        if(changeInTheta == 0) {
+          localXOffset = horizontalTWDistance;
+          localYOffset = changeInRight;
+        } else {
+          localXOffset = 2 * sin(changeInTheta / 2) * (horizontalTWDistance / changeInTheta + trackWidth / 2);
+          localYOffset = 2 * sin(changeInTheta / 2) * (changeInRight / changeInTheta + trackWidth / 2);
+        }
+
+        
+
+        double globalXOffset = 0;
+        double globalYOffset = 0;
+        double localRadius = sqrt(localXOffset * localXOffset + localYOffset * localYOffset);
+        double localAngle = atan2(localYOffset, localXOffset) - averageOrientation;
+
+        globalXOffset = localRadius * cos(localAngle);
+        globalYOffset = localRadius * sin(localAngle);
+
+        position[0] += globalXOffset;
+        position[1] += globalYOffset;
+      }
+    }
+
+    void moveToPose(double x, double y, double xErr, double yErr) {
+      
+    }
+
+};
 /*---------------------------------------------------------------------------*/
 /*                          Pre-Autonomous Functions                         */
 /*                                                                           */
@@ -83,6 +171,8 @@ void autonThreadOne() {
 /*---------------------------------------------------------------------------*/
 
 void autonomous(void) {
+  // odom odomPod;
+  // odom* odomThing = &odomPod;
   leftSideDT.setStopping(brake);
   rightSideDT.setStopping(brake);
 }
@@ -102,51 +192,91 @@ void autonomous(void) {
 /*---------------------------------------------------------------------------*/
 
 void driverControlThreadOne() {
-  while(10) {
-    double movement = botController.Axis3.position() * (11 / 100);
-    double rotation = botController.Axis1.position() * (11 / 100);
+  printf("thread one \n");
+  double movement = 0;
+  double rotation = 0;
+  while(true) {
+    movement = botController.Axis3.position();
+    rotation = botController.Axis1.position();
 
     rightSideDT.spin(forward, movement - rotation, volt);
     leftSideDT.spin(forward, movement + rotation, volt);
+    wait(10, msec);
   }
 }
 
 void whenL1Pressed() {
+  printf("L1 pressed \n");
   firstStage.spin(forward, 5.5, volt);
   secondStage.spin(forward, 11, volt);
   thirdStage.spin(reverse, 5.5, volt);
 }
 
+
 void whenL1Released(){
+  printf("L1 released \n");
   firstStage.spin(forward, 0, volt);
   secondStage.spin(forward, 0, volt);
   thirdStage.spin(reverse, 0, volt);
 }
 
 void whenL2Pressed() {
+  printf("L2 pressed \n");
   firstStage.spin(reverse, 5.5, volt);
   secondStage.spin(reverse, 11, volt);
   thirdStage.spin(forward, 5.5, volt);
 }
 
 void whenL2Released(){
+  printf("L2 released \n");
   firstStage.spin(reverse, 0, volt);
   secondStage.spin(reverse, 0, volt);
   thirdStage.spin(forward, 0, volt);
 }
 
 void whenR2Pressed() {
+  printf("R2 pressed \n");
   firstStage.spin(forward, 5.5, volt);
   secondStage.spin(forward, 11, volt);
   thirdStage.spin(forward, 5.5, volt);
 }
 
 void whenR2Released() {
+  printf("R2 released \n");
   firstStage.spin(forward, 0, volt);
   secondStage.spin(forward, 0, volt);
   thirdStage.spin(forward, 0, volt);
 }
 
+void whenDownPressed() {
+  if(!scraperMech) {
+    scraperSolenoid.set(true);
+    scraperMech = true;
+  } else {
+    scraperSolenoid.set(false);
+    scraperMech = false;
+  }
+}
+
+void whenLeftPressed() {
+  if(!doubleParkMechExtended) {
+    doubleParkSolenoid.set(true);
+    doubleParkMechExtended = true;
+  } else {
+    doubleParkSolenoid.set(false);
+    doubleParkMechExtended = false;
+  }
+}
+
+void whenRightPressed() {
+  if(!wingMech) {
+    wingSolenoid.set(true);
+    wingMech = true;
+  } else {
+    wingSolenoid.set(false);
+    wingMech = false;
+  }
+}
 
 void driverControlThreadThree() {
   while(10) {
@@ -161,15 +291,22 @@ void driverControlThreadFour() {
 }
 
 void usercontrol(void) {
+  thread moveFunctionality = thread(driverControlThreadOne);
   botController.ButtonL1.pressed(whenL1Pressed);
   botController.ButtonL1.released(whenL1Released);
   botController.ButtonL2.pressed(whenL2Pressed);
   botController.ButtonL2.released(whenL2Released);
-  botController.ButtonR1.pressed(whenR2Pressed);
+  botController.ButtonR2.pressed(whenR2Pressed);
   botController.ButtonR2.released(whenR2Released);
-  thread moveFunctionality = thread(driverControlThreadOne);
-  thread colorSortingFunct = thread(driverControlThreadThree);
-  thread doubleParkingFunct = thread(driverControlThreadFour);
+  botController.ButtonDown.pressed(whenDownPressed);
+  botController.ButtonLeft.pressed(whenLeftPressed);
+  botController.ButtonRight.pressed(whenRightPressed);
+  // thread colorSortingFunct = thread(driverControlThreadThree);
+  // thread doubleParkingFunct = thread(driverControlThreadFour);
+  while(Competition.isDriverControl()) {
+    wait(10, msec);
+  }
+  moveFunctionality.interrupt();
 }
 
 //
