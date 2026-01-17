@@ -259,8 +259,10 @@ void whenL1Pressed() {
   printf("L1 pressed \n");
   if(!wingMech){
     wingSolenoid.set(true);
-    wingMech = true;
+    wingMech = true; 
   }
+  doubleParkSolenoid.set(false);
+  doubleParkMechExtended = false;
   firstStage.spin(forward, 5.5, volt);
   secondStage.spin(forward, 11, volt);
   thirdStage.spin(forward, 0, volt);
@@ -276,6 +278,12 @@ void whenL1Released(){
 
 void whenR1Pressed(){
   printf("R1 released \n");
+  firstStage.spin(reverse, 5.5, volt);
+  secondStage.spin(reverse, 11, volt);
+  thirdStage.spin(forward, 5.5, volt);
+  wait(150,msec);
+  doubleParkSolenoid.set(true);
+  doubleParkMechExtended = true;
   firstStage.spin(forward, 5.5, volt);
   secondStage.spin(forward, 11, volt);
   thirdStage.spin(reverse, 5.5, volt);
@@ -304,8 +312,16 @@ void whenL2Released(){
 
 void whenR2Pressed() {
   printf("R2 pressed \n");
-  wingSolenoid.set(false);
-  wingMech = false;
+  firstStage.spin(reverse, 5.5, volt);
+  secondStage.spin(reverse, 11, volt);
+  thirdStage.spin(reverse, 5.5, volt);
+  wait(150,msec);
+  doubleParkSolenoid.set(true);
+  doubleParkMechExtended = true;
+  if(wingMech == true){
+    wingSolenoid.set(false);
+    wingMech = false;
+  }
   firstStage.spin(forward, 5.5, volt);
   secondStage.spin(forward, 11, volt);
   thirdStage.spin(forward, 5.5, volt);
@@ -370,9 +386,9 @@ void usercontrol(void) {
   botController.ButtonL2.released(whenL2Released);
   botController.ButtonR2.pressed(whenR2Pressed);
   botController.ButtonR2.released(whenR2Released);
-  botController.ButtonDown.pressed(whenDownPressed);
+  botController.ButtonY.pressed(whenDownPressed);
   botController.ButtonLeft.pressed(whenLeftPressed);
-  botController.ButtonRight.pressed(whenRightPressed);
+  botController.ButtonB.pressed(whenRightPressed);
   // thread colorSortingFunct = thread(driverControlThreadThree);
   // thread doubleParkingFunct = thread(driverControlThreadFour);
   while(Competition.isDriverControl()) {
