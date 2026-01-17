@@ -46,12 +46,12 @@ distance disSensor = distance(PORT11);
 
 // Pneumatics
 brain botBrain;
-digital_out doubleParkSolenoid = digital_out(botBrain.ThreeWirePort.A);
+digital_out doubleParkSolenoid = digital_out(botBrain.ThreeWirePort.C);
 bool doubleParkMechExtended = false;
 digital_out wingSolenoid = digital_out(botBrain.ThreeWirePort.B);
 bool wingMech = false;
-digital_out scraperSolenoid = digital_out(botBrain.ThreeWirePort.C);
-bool scraperMech = false;
+digital_out scraperSolenoid = digital_out(botBrain.ThreeWirePort.A);
+bool scraperMech = true;
 
 controller botController;
 
@@ -170,9 +170,59 @@ void autonThreadOne() {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+void move(int param, int speed){
+  if(param == 1){
+    leftSideDT.spin(forward, speed, volt);
+    rightSideDT.spin(forward, speed, volt);
+  } else if(param == -1){
+    leftSideDT.spin(reverse, speed, volt);
+    rightSideDT.spin(reverse, speed, volt);
+  } else if(param = 2){
+    leftSideDT.spin(reverse, speed, volt);
+    rightSideDT.spin(forward, speed, volt);
+  } else if(param = -2){
+    leftSideDT.spin(forward, speed, volt);
+    rightSideDT.spin(reverse, speed, volt);
+  } else if(param == 0){
+    leftSideDT.spin(forward, 0, volt);
+    rightSideDT.spin(forward, 0, volt);
+  }
+}
+
+void autoTake(int dir){
+  if(dir == 1){
+    firstStage.spin(reverse, 5.5, volt);
+    secondStage.spin(reverse, 11, volt);
+    thirdStage.spin(reverse, 5.5, volt);
+  } else if(dir == 2){
+    firstStage.spin(forward, 5.5, volt);
+    secondStage.spin(forward, 11, volt);
+    thirdStage.spin(reverse, 5.5, volt);
+  } else if(dir == 3){
+    wingSolenoid.set(false);
+    wingMech = false;
+    firstStage.spin(forward, 5.5, volt);
+    secondStage.spin(forward, 11, volt);
+    thirdStage.spin(forward, 5.5, volt);
+  }
+}
+
+
 void autonomous(void) {
   // odom odomPod;
   // odom* odomThing = &odomPod;
+  
+  // move(1, 6);
+  // wait(700, msec);
+  // move(0,0);
+  // wait(100,msec);
+  // move(2,6);
+  // wait(300,msec);
+  // move(-2,6);
+  // wait(300,msec);
+
+
+
   leftSideDT.setStopping(brake);
   rightSideDT.setStopping(brake);
 }
@@ -207,14 +257,32 @@ void driverControlThreadOne() {
 
 void whenL1Pressed() {
   printf("L1 pressed \n");
+  if(!wingMech){
+    wingSolenoid.set(true);
+    wingMech = true;
+  }
   firstStage.spin(forward, 5.5, volt);
   secondStage.spin(forward, 11, volt);
-  thirdStage.spin(reverse, 5.5, volt);
+  thirdStage.spin(forward, 0, volt);
 }
 
 
 void whenL1Released(){
   printf("L1 released \n");
+  firstStage.spin(forward, 0, volt);
+  secondStage.spin(forward, 0, volt);
+  thirdStage.spin(forward, 0, volt);
+}
+
+void whenR1Pressed(){
+  printf("R1 released \n");
+  firstStage.spin(forward, 5.5, volt);
+  secondStage.spin(forward, 11, volt);
+  thirdStage.spin(reverse, 5.5, volt);
+}
+
+void whenR1Released(){
+  printf("R1 released \n");
   firstStage.spin(forward, 0, volt);
   secondStage.spin(forward, 0, volt);
   thirdStage.spin(reverse, 0, volt);
@@ -224,7 +292,7 @@ void whenL2Pressed() {
   printf("L2 pressed \n");
   firstStage.spin(reverse, 5.5, volt);
   secondStage.spin(reverse, 11, volt);
-  thirdStage.spin(forward, 5.5, volt);
+  thirdStage.spin(reverse, 5.5, volt);
 }
 
 void whenL2Released(){
@@ -236,6 +304,8 @@ void whenL2Released(){
 
 void whenR2Pressed() {
   printf("R2 pressed \n");
+  wingSolenoid.set(false);
+  wingMech = false;
   firstStage.spin(forward, 5.5, volt);
   secondStage.spin(forward, 11, volt);
   thirdStage.spin(forward, 5.5, volt);
@@ -294,6 +364,8 @@ void usercontrol(void) {
   thread moveFunctionality = thread(driverControlThreadOne);
   botController.ButtonL1.pressed(whenL1Pressed);
   botController.ButtonL1.released(whenL1Released);
+  botController.ButtonR1.pressed(whenR1Pressed);
+  botController.ButtonR1.released(whenR1Released);
   botController.ButtonL2.pressed(whenL2Pressed);
   botController.ButtonL2.released(whenL2Released);
   botController.ButtonR2.pressed(whenR2Pressed);
