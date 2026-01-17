@@ -255,6 +255,55 @@ void driverControlThreadOne() {
   }
 }
 
+void unjamCheck() {
+  while(true) {
+    // Get the voltage of each motor using the formula
+    int firstStageVoltage = (firstStage.velocity(rpm) * 2 * M_PI * firstStage.torque()) / firstStage.current();
+    int secondStageVoltage = (secondStage.velocity(rpm) * 2 * M_PI * secondStage.torque()) / secondStage.current();
+    int thirdStageVoltage = (thirdStage.velocity(rpm) * 2 * M_PI * thirdStage.torque()) / thirdStage.current();
+
+    // Check to see if the first stage is jammed
+    if(firstStageVoltage < (11.0 / 10)) {
+      // stop all other motors to prevent infractions
+      secondStage.spin(forward, 0, volt);
+      thirdStage.spin(forward, 0, volt);
+
+      // Stop the jammed motor in case it is already spinning
+      firstStage.spin(forward, 0, volt);
+      firstStage.spin(reverse, 5.5, volt);
+      wait(1, seconds);
+      firstStage.spin(forward, 0, volt);
+    }
+
+    // Check to see if the first stage is jammed
+    if(secondStageVoltage < (11.0 / 10)) {
+      // stop all other motors to prevent infractions
+      firstStage.spin(forward, 0, volt);
+      thirdStage.spin(forward, 0, volt);
+      
+      // Stop the jammed motor in case it is already spinning
+      secondStage.spin(forward, 0, volt);
+      secondStage.spin(reverse, 5.5, volt);
+      wait(1, seconds);
+      secondStage.spin(forward, 0, volt);
+    }
+
+    // Check to see if the first stage is jammed
+    if(thirdStageVoltage < (11.0 / 10)) {
+      // stop all other motors to prevent infractions
+      secondStage.spin(forward, 0, volt);
+      firstStage.spin(forward, 0, volt);
+
+      // Stop the jammed motor in case it is already spinning
+      thirdStage.spin(forward, 0, volt);
+      thirdStage.spin(reverse, 5.5, volt);
+      wait(1, seconds);
+      thirdStage.spin(forward, 0, volt);
+    }
+    wait(10, msec);
+  }
+}
+
 void whenL1Pressed() {
   printf("L1 pressed \n");
   if(!wingMech){
@@ -378,6 +427,7 @@ void driverControlThreadFour() {
 
 void usercontrol(void) {
   thread moveFunctionality = thread(driverControlThreadOne);
+  thread unjam = thread(unjamCheck);
   botController.ButtonL1.pressed(whenL1Pressed);
   botController.ButtonL1.released(whenL1Released);
   botController.ButtonR1.pressed(whenR1Pressed);
