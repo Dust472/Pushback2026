@@ -39,6 +39,16 @@ motor motorIntakeTwo = motor(PORT9, ratio6_1);
 rotation horizontalOdom = rotation(PORT17);
 inertial inertialSensor = inertial(PORT4);
 
+// Pneumatics
+brain botBrain;
+digital_out intakePiston1 = digital_out(botBrain.ThreeWirePort.C);
+bool piston1E = false;
+digital_out intakePiston2 = digital_out(botBrain.ThreeWirePort.B);
+bool piston2E = false;
+digital_out wingSolenoid = digital_out(botBrain.ThreeWirePort.B);
+bool wingMech = false;
+digital_out scraperSolenoid = digital_out(botBrain.ThreeWirePort.A);
+bool scraperMech = false;
 
 // Pneumatics
 controller botController;
@@ -540,6 +550,43 @@ int pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+// void move(int param, int speed){
+//   if(param == 1){
+//     leftSideDT.spin(forward, speed, volt);
+//     rightSideDT.spin(forward, speed, volt);
+//   } else if(param == -1){
+//     leftSideDT.spin(reverse, speed, volt);
+//     rightSideDT.spin(reverse, speed, volt);
+//   } else if(param = 2){
+//     leftSideDT.spin(reverse, speed, volt);
+//     rightSideDT.spin(forward, speed, volt);
+//   } else if(param = -2){
+//     leftSideDT.spin(forward, speed, volt);
+//     rightSideDT.spin(reverse, speed, volt);
+//   } else if(param == 0){
+//     leftSideDT.spin(forward, 0, volt);
+//     rightSideDT.spin(forward, 0, volt);
+//   }
+// }
+
+// void autoTake(int dir){
+//   if(dir == 1){
+//     motorIntakeOne.spin(reverse, 5.5, volt);
+//     motorIntakeTwo.spin(reverse, 11, volt);
+    
+//   } else if(dir == 2){
+//     motorIntakeOne.spin(forward, 5.5, volt);
+//     motorIntakeTwo.spin(forward, 11, volt);
+    
+//   } else if(dir == 3){
+//     wingSolenoid.set(false);
+//     wingMech = false;
+//     motorIntakeOne.spin(forward, 5.5, volt);
+//     motorIntakeTwo.spin(forward, 11, volt);
+    
+//   }
+// }
+
 void rightSideElims() {
 
 }
@@ -597,21 +644,6 @@ void autonomous(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-void intake() {
-  motorIntakeOne.spin(forward, 20, volt);
-  motorIntakeTwo.spin(forward, 20, volt);
-}
-
-void extake() {
-  motorIntakeOne.spin(reverse, 20, volt);
-  motorIntakeTwo.spin(reverse, 20, volt);
-}
-
-void stopIntake() {
-  motorIntakeOne.spin(forward, 0, volt);
-  motorIntakeTwo.spin(forward, 0, volt);
-}
-
 void driverControlThreadOne() {
   printf("thread one \n");
   double movement = 0;
@@ -625,14 +657,151 @@ void driverControlThreadOne() {
     wait(10, msec);
   }
 }
+
+void whenL1Pressed() {
+  printf("L1 pressed \n");
+  if(piston1E == false){
+    intakePiston1.set(false);
+    piston1E = false;
+  }
+  if(piston2E == true){
+    intakePiston2.set(false);
+    piston2E = false;
+  }
+  motorIntakeOne.spin(forward, 11, volt);
+  motorIntakeTwo.spin(forward, 11, volt);
+}
+
+void whenL1Released(){
+  printf("L1 released \n");
+  motorIntakeOne.spin(forward, 0, volt);
+  motorIntakeTwo.spin(forward, 0, volt);
+  if(piston1E != false || piston2E != false){
+    intakePiston1.set(false);
+    piston1E = false;
+    intakePiston2.set(false);
+    piston2E = false;
+  }
+}
+
+void whenR2Pressed(){
+  printf("R1 released \n");
+  if(piston1E != false || piston2E != true){
+    intakePiston1.set(false);
+    piston1E = true;
+    intakePiston2.set(true);
+    piston2E = true;
+  }
+  motorIntakeOne.spin(forward, 11, volt);
+  motorIntakeTwo.spin(forward, 11, volt);
+}
+
+void whenR2Released(){
+  printf("R1 released \n");
+  motorIntakeOne.spin(forward, 0, volt);
+  motorIntakeTwo.spin(forward, 0, volt);
+  if(piston1E != false || piston2E != false){
+    intakePiston1.set(false);
+    piston1E = false;
+    intakePiston2.set(false);
+    piston2E = false;
+  }
+}
+
+void whenL2Pressed() {
+  printf("L2 pressed \n");
+  motorIntakeOne.spin(reverse, 11, volt);
+  motorIntakeTwo.spin(reverse, 11, volt);
+  
+}
+
+void whenL2Released(){
+  printf("L2 released \n");
+  motorIntakeOne.spin(reverse, 0, volt);
+  motorIntakeTwo.spin(reverse, 0, volt);
+}
+
+void whenR1Pressed() { 
+  if(piston1E != true || piston2E != false){
+    intakePiston1.set(true);
+    piston1E = true;
+    intakePiston2.set(false);
+    piston2E = false;
+  }
+  motorIntakeOne.spin(forward, 11, volt);
+  motorIntakeTwo.spin(forward, 11, volt);
+}
+
+void whenR1Released() {
+  printf("R2 released \n");
+  motorIntakeOne.spin(forward, 0, volt);
+  motorIntakeTwo.spin(forward, 0, volt);
+  if(piston1E != false || piston2E != false){
+    intakePiston1.set(false);
+    piston1E = false;
+    intakePiston2.set(false);
+    piston2E = false;
+  }
+}
+
+void whenDownPressed() {
+  if(!scraperMech) {
+    scraperSolenoid.set(true);
+    scraperMech = true;
+  } else {
+    scraperSolenoid.set(false);
+    scraperMech = false;
+  }
+}
+
+void whenLeftPressed() {
+  if(!piston1E) {
+    intakePiston1.set(true);
+    piston1E = true;
+  } else {
+    intakePiston1.set(false);
+    piston1E = false;
+  }
+}
+
+void whenRightPressed() {
+  if(!wingMech) {
+    wingSolenoid.set(true);
+    wingMech = true;
+  } else {
+    wingSolenoid.set(false);
+    wingMech = false;
+  }
+}
+
+void driverControlThreadThree() {
+  while(10) {
+
+  }
+}
+
+void driverControlThreadFour() {
+  while(10) {
+
+  }
+}
+
 void usercontrol(void) {
   thread moveFunctionality = thread(driverControlThreadOne);
-  
-  botController.ButtonR1.pressed(intake);
-  botController.ButtonL1.pressed(extake);
-  botController.ButtonR1.released(stopIntake);
-  botController.ButtonL1.released(stopIntake);
-
+  //thread unjam = thread(unjamCheck);
+  botController.ButtonL1.pressed(whenL1Pressed);
+  botController.ButtonL1.released(whenL1Released);
+  botController.ButtonR2.pressed(whenR2Pressed);
+  botController.ButtonR2.released(whenR2Released);
+  botController.ButtonL2.pressed(whenL2Pressed);
+  botController.ButtonL2.released(whenL2Released);
+  botController.ButtonR1.pressed(whenR1Pressed);
+  botController.ButtonR1.released(whenR1Released);
+  botController.ButtonY.pressed(whenDownPressed);
+  botController.ButtonLeft.pressed(whenLeftPressed);
+  botController.ButtonB.pressed(whenRightPressed);
+  // thread colorSortingFunct = thread(driverControlThreadThree);
+  // thread doubleParkingFunct = thread(driverControlThreadFour);
   while(Competition.isDriverControl()) {
     wait(10, msec);
   }
