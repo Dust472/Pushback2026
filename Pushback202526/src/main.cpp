@@ -33,8 +33,8 @@ motor_group rightSideDT = motor_group(rightSide1, rightSide2, rightSide3);
 motor_group leftSideDT = motor_group(leftSide1, leftSide2, leftSide3);
 // L1 - Intake
 // R1 - Intake
-motor motorIntakeOne = motor(PORT8, ratio6_1, true);
-motor motorIntakeTwo = motor(PORT9, ratio6_1);
+motor motorIntakeOne = motor(PORT8, ratio6_1);
+motor motorIntakeTwo = motor(PORT9, ratio6_1, true);
 
 rotation horizontalOdom = rotation(PORT17);
 inertial inertialSensor = inertial(PORT4);
@@ -52,7 +52,6 @@ bool scraperMech = false;
 
 // Pneumatics
 controller botController;
-brain botBrain;
 // Wing/store
 // digital_out wingSolenoid = digital_out(botBrain.ThreeWirePort.B);
 // bool wingMech = false;
