@@ -41,22 +41,12 @@ inertial inertialSensor = inertial(PORT4);
 
 // Pneumatics
 brain botBrain;
-digital_out intakePiston1 = digital_out(botBrain.ThreeWirePort.C);
-bool piston1E = false;
-digital_out intakePiston2 = digital_out(botBrain.ThreeWirePort.B);
-bool piston2E = false;
+digital_out bottomPiston = digital_out(botBrain.ThreeWirePort.D);
+digital_out topPiston = digital_out(botBrain.ThreeWirePort.C);
 digital_out wingSolenoid = digital_out(botBrain.ThreeWirePort.B);
-bool wingMech = false;
 digital_out scraperSolenoid = digital_out(botBrain.ThreeWirePort.A);
-bool scraperMech = false;
-
-// Pneumatics
 controller botController;
-// Wing/store
-// digital_out wingSolenoid = digital_out(botBrain.ThreeWirePort.B);
-// bool wingMech = false;
-// digital_out scraperSolenoid = digital_out(botBrain.ThreeWirePort.A);
-// bool scraperMech = false;
+
 
 class odometry {
   private:
@@ -572,17 +562,14 @@ int pre_auton(void) {
 //   if(dir == 1){
 //     motorIntakeOne.spin(reverse, 5.5, volt);
 //     motorIntakeTwo.spin(reverse, 11, volt);
-    
 //   } else if(dir == 2){
 //     motorIntakeOne.spin(forward, 5.5, volt);
 //     motorIntakeTwo.spin(forward, 11, volt);
-    
 //   } else if(dir == 3){
 //     wingSolenoid.set(false);
 //     wingMech = false;
 //     motorIntakeOne.spin(forward, 5.5, volt);
 //     motorIntakeTwo.spin(forward, 11, volt);
-    
 //   }
 // }
 
@@ -658,130 +645,64 @@ void driverControlThreadOne() {
 }
 
 void whenL1Pressed() {
-  printf("L1 pressed \n");
-  if(piston1E == false){
-    intakePiston1.set(false);
-    piston1E = false;
-  }
-  if(piston2E == true){
-    intakePiston2.set(false);
-    piston2E = false;
-  }
+  topPiston.set(false);
+  bottomPiston.set(false);
   motorIntakeOne.spin(forward, 11, volt);
   motorIntakeTwo.spin(forward, 11, volt);
 }
 
 void whenL1Released(){
-  printf("L1 released \n");
   motorIntakeOne.spin(forward, 0, volt);
   motorIntakeTwo.spin(forward, 0, volt);
-  if(piston1E != false || piston2E != false){
-    intakePiston1.set(false);
-    piston1E = false;
-    intakePiston2.set(false);
-    piston2E = false;
-  }
 }
 
 void whenR2Pressed(){
-  printf("R1 released \n");
-  if(piston1E != false || piston2E != true){
-    intakePiston1.set(false);
-    piston1E = true;
-    intakePiston2.set(true);
-    piston2E = true;
-  }
+  topPiston.set(false);
+  bottomPiston.set(true);
   motorIntakeOne.spin(forward, 11, volt);
   motorIntakeTwo.spin(forward, 11, volt);
 }
 
 void whenR2Released(){
-  printf("R1 released \n");
   motorIntakeOne.spin(forward, 0, volt);
   motorIntakeTwo.spin(forward, 0, volt);
-  if(piston1E != false || piston2E != false){
-    intakePiston1.set(false);
-    piston1E = false;
-    intakePiston2.set(false);
-    piston2E = false;
-  }
 }
 
 void whenL2Pressed() {
-  printf("L2 pressed \n");
   motorIntakeOne.spin(reverse, 11, volt);
   motorIntakeTwo.spin(reverse, 11, volt);
-  
 }
 
 void whenL2Released(){
-  printf("L2 released \n");
   motorIntakeOne.spin(reverse, 0, volt);
   motorIntakeTwo.spin(reverse, 0, volt);
 }
 
 void whenR1Pressed() { 
-  if(piston1E != true || piston2E != false){
-    intakePiston1.set(true);
-    piston1E = true;
-    intakePiston2.set(false);
-    piston2E = false;
-  }
+  topPiston.set(true);
+  bottomPiston.set(false);
   motorIntakeOne.spin(forward, 11, volt);
   motorIntakeTwo.spin(forward, 11, volt);
 }
 
 void whenR1Released() {
-  printf("R2 released \n");
   motorIntakeOne.spin(forward, 0, volt);
   motorIntakeTwo.spin(forward, 0, volt);
-  if(piston1E != false || piston2E != false){
-    intakePiston1.set(false);
-    piston1E = false;
-    intakePiston2.set(false);
-    piston2E = false;
-  }
 }
 
-void whenDownPressed() {
-  if(!scraperMech) {
+void whenYPressed() {
+  if(!scraperSolenoid.value()) {
     scraperSolenoid.set(true);
-    scraperMech = true;
   } else {
     scraperSolenoid.set(false);
-    scraperMech = false;
   }
 }
 
-void whenLeftPressed() {
-  if(!piston1E) {
-    intakePiston1.set(true);
-    piston1E = true;
-  } else {
-    intakePiston1.set(false);
-    piston1E = false;
-  }
-}
-
-void whenRightPressed() {
-  if(!wingMech) {
+void whenBPressed() {
+  if(!wingSolenoid.value()) {
     wingSolenoid.set(true);
-    wingMech = true;
   } else {
     wingSolenoid.set(false);
-    wingMech = false;
-  }
-}
-
-void driverControlThreadThree() {
-  while(10) {
-
-  }
-}
-
-void driverControlThreadFour() {
-  while(10) {
-
   }
 }
 
@@ -796,9 +717,8 @@ void usercontrol(void) {
   botController.ButtonL2.released(whenL2Released);
   botController.ButtonR1.pressed(whenR1Pressed);
   botController.ButtonR1.released(whenR1Released);
-  botController.ButtonY.pressed(whenDownPressed);
-  botController.ButtonLeft.pressed(whenLeftPressed);
-  botController.ButtonB.pressed(whenRightPressed);
+  botController.ButtonY.pressed(whenYPressed);
+  botController.ButtonB.pressed(whenBPressed);
   // thread colorSortingFunct = thread(driverControlThreadThree);
   // thread doubleParkingFunct = thread(driverControlThreadFour);
   while(Competition.isDriverControl()) {
