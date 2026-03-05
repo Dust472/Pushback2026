@@ -268,9 +268,9 @@ class odometry {
     void turning() {
       double error = desiredAngle - position[2];
       // 0.06
-      double kp = 0.06;
-      double ki = 0.00001;
-      double kd = 1.5;
+      double kp = 0.046;
+      double ki = 0.0001;
+      double kd = 0.4;
 
       while(true) {
         if(tracking) {
@@ -287,7 +287,7 @@ class odometry {
           derivative *= std::max(originalDistance/10, 1.0);
         }
 
-        if(error < 0.4 && error > -0.4) {
+        if(error < 0.8 && error > -0.8) {
           angled = true;
           integral = 0;
           turnSpeed = 0;
@@ -558,23 +558,35 @@ int pre_auton(void) {
 //   }
 // }
 
-// void autoTake(int dir){
-//   if(dir == 1){
-//     motorIntakeOne.spin(reverse, 5.5, volt);
-//     motorIntakeTwo.spin(reverse, 11, volt);
-//   } else if(dir == 2){
-//     motorIntakeOne.spin(forward, 5.5, volt);
-//     motorIntakeTwo.spin(forward, 11, volt);
-//   } else if(dir == 3){
-//     wingSolenoid.set(false);
-//     wingMech = false;
-//     motorIntakeOne.spin(forward, 5.5, volt);
-//     motorIntakeTwo.spin(forward, 11, volt);
-//   }
-// }
+void autoTake(int dir){
+  if(dir == 1){
+    //extake
+    motorIntakeOne.spin(reverse, 5.5, volt);
+    motorIntakeTwo.spin(reverse, 11, volt);
+  } else if(dir == 2){
+    //top goal
+    topPiston.set(false);
+    bottomPiston.set(false);
+    motorIntakeOne.spin(forward, 5.5, volt);
+    motorIntakeTwo.spin(forward, 11, volt);
+  } else if(dir == 3){
+    //middle goal
+    topPiston.set(true);
+    bottomPiston.set(false);
+    motorIntakeOne.spin(forward, 5.5, volt);
+    motorIntakeTwo.spin(forward, 11, volt);
+  } else if(dir == 4){
+    //storing
+    topPiston.set(false);
+    bottomPiston.set(true);
+    motorIntakeOne.spin(forward, 5.5, volt);
+    motorIntakeTwo.spin(forward, 11, volt);
+  }
+}
 
 void rightSideElims() {
-
+  odom.moveToPos(0, 9);
+  autoTake(4);
 }
 
 void leftSideElims() {
@@ -586,7 +598,10 @@ void rightSideAWP() {
 }
 
 void leftSideAWP() {
-
+  //odom.moveToPos(x, y)
+  //odom.turnTo(in degrees) (front 0, right 90, back 180)
+  //wingSolenoid.set(bool)
+  
 }
 
 void skills() {
@@ -690,7 +705,7 @@ void whenR1Released() {
   motorIntakeTwo.spin(forward, 0, volt);
 }
 
-void whenYPressed() {
+void whenDownPressed() {
   if(!scraperSolenoid.value()) {
     scraperSolenoid.set(true);
   } else {
@@ -717,7 +732,7 @@ void usercontrol(void) {
   botController.ButtonL2.released(whenL2Released);
   botController.ButtonR1.pressed(whenR1Pressed);
   botController.ButtonR1.released(whenR1Released);
-  botController.ButtonY.pressed(whenYPressed);
+  botController.ButtonY.pressed(whenDownPressed);
   botController.ButtonB.pressed(whenBPressed);
   // thread colorSortingFunct = thread(driverControlThreadThree);
   // thread doubleParkingFunct = thread(driverControlThreadFour);
