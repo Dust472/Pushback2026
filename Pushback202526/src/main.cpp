@@ -539,24 +539,24 @@ int pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-// void move(int param, int speed){
-//   if(param == 1){
-//     leftSideDT.spin(forward, speed, volt);
-//     rightSideDT.spin(forward, speed, volt);
-//   } else if(param == -1){
-//     leftSideDT.spin(reverse, speed, volt);
-//     rightSideDT.spin(reverse, speed, volt);
-//   } else if(param = 2){
-//     leftSideDT.spin(reverse, speed, volt);
-//     rightSideDT.spin(forward, speed, volt);
-//   } else if(param = -2){
-//     leftSideDT.spin(forward, speed, volt);
-//     rightSideDT.spin(reverse, speed, volt);
-//   } else if(param == 0){
-//     leftSideDT.spin(forward, 0, volt);
-//     rightSideDT.spin(forward, 0, volt);
-//   }
-// }
+void move(int param, int speed){
+  if(param == 1){
+    leftSideDT.spin(forward, speed, volt);
+    rightSideDT.spin(forward, speed, volt);
+  } else if(param == -1){
+    leftSideDT.spin(reverse, speed, volt);
+    rightSideDT.spin(reverse, speed, volt);
+  } else if(param = 2){
+    leftSideDT.spin(reverse, speed, volt);
+    rightSideDT.spin(forward, speed, volt);
+  } else if(param = -2){
+    leftSideDT.spin(forward, speed, volt);
+    rightSideDT.spin(reverse, speed, volt);
+  } else if(param == 0){
+    leftSideDT.spin(forward, 0, volt);
+    rightSideDT.spin(forward, 0, volt);
+  }
+}
 
 void autoTake(int dir){
   if(dir == 1){
@@ -578,15 +578,22 @@ void autoTake(int dir){
   } else if(dir == 4){
     //storing
     topPiston.set(false);
-    bottomPiston.set(true);
+    bottomPiston.set(false);
     motorIntakeOne.spin(forward, 5.5, volt);
     motorIntakeTwo.spin(forward, 11, volt);
   }
 }
 
 void rightSideElims() {
-  odom.moveToPos(0, 9);
+  odom.moveToPos(0, 8);
   autoTake(4);
+  wait(.5, sec);
+  odom.moveToPos(0,-7.5);
+  odom.turnTo(-94);
+  wait(.75,sec);
+  odom.moveToPos(-13,-12); 
+  wait(1, sec);
+  odom.moveToPos(-16,-12);
 }
 
 void leftSideElims() {
