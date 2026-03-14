@@ -539,24 +539,24 @@ int pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-void move(int param, int speed){
-  if(param == 1){
-    leftSideDT.spin(forward, speed, volt);
-    rightSideDT.spin(forward, speed, volt);
-  } else if(param == -1){
-    leftSideDT.spin(reverse, speed, volt);
-    rightSideDT.spin(reverse, speed, volt);
-  } else if(param = 2){
-    leftSideDT.spin(reverse, speed, volt);
-    rightSideDT.spin(forward, speed, volt);
-  } else if(param = -2){
-    leftSideDT.spin(forward, speed, volt);
-    rightSideDT.spin(reverse, speed, volt);
-  } else if(param == 0){
-    leftSideDT.spin(forward, 0, volt);
-    rightSideDT.spin(forward, 0, volt);
-  }
-}
+// void move(int param, int speed){
+//   if(param == 1){
+//     leftSideDT.spin(forward, speed, volt);
+//     rightSideDT.spin(forward, speed, volt);
+//   } else if(param == -1){
+//     leftSideDT.spin(reverse, speed, volt);
+//     rightSideDT.spin(reverse, speed, volt);
+//   } else if(param = 2){
+//     leftSideDT.spin(reverse, speed, volt);
+//     rightSideDT.spin(forward, speed, volt);
+//   } else if(param = -2){
+//     leftSideDT.spin(forward, speed, volt);
+//     rightSideDT.spin(reverse, speed, volt);
+//   } else if(param == 0){
+//     leftSideDT.spin(forward, 0, volt);
+//     rightSideDT.spin(forward, 0, volt);
+//   }
+// }
 
 void autoTake(int dir){
   if(dir == 1){
@@ -581,23 +581,60 @@ void autoTake(int dir){
     bottomPiston.set(false);
     motorIntakeOne.spin(forward, 5.5, volt);
     motorIntakeTwo.spin(forward, 11, volt);
+  } else {
+    motorIntakeOne.spin(forward, 0, volt);
+    motorIntakeTwo.spin(forward, 0, volt);
   }
 }
 
 void rightSideElims() {
-  odom.moveToPos(0, 8);
+  left side
+  odom.moveToPos(0, 7);
   autoTake(4);
-  wait(.5, sec);
-  odom.moveToPos(0,-7.5);
-  odom.turnTo(-94);
+  wait(.5,sec);
+  odom.moveToPos(0, -7.5);
+  odom.turnTo(-99);
   wait(.75,sec);
-  odom.moveToPos(-13,-12); 
-  wait(1, sec);
-  odom.moveToPos(-16,-12);
+  odom.changeSpeed(.3);
+  odom.moveToPos(-20,-13);
+  odom.turnTo(-230);
+  autoTake(0);
+  wait(0.5, sec);
+  odom.moveToPos(0,-15);
+  odom.moveToPos(-23,-7);
+  autoTake(3);
+ 
+  // right side
+  // odom.moveToPos(0, -7);
+  // autoTake(4);
+  // wait(.5, sec);
+  // odom.moveToPos(0,-7.5);
+  // odom.turnTo(99);
+  // wait(.75,sec);
+  // odom.changeSpeed(.3);
+  // odom.moveToPos(20,13);
+  // odom.turnTo(230);
+  // autoTake(0);
+  // wait(0.5, sec);
+  // odom.moveToPos(23,7);
+  // autoTake(3);
 }
 
 void leftSideElims() {
-
+  //rihgt side
+  // odom.moveToPos(0, -7);
+  // autoTake(4);
+  // wait(.5, sec);
+  // odom.moveToPos(0,7.5);
+  // odom.turnTo(99);
+  // wait(.75,sec);
+  // odom.changeSpeed(.3);
+  // odom.moveToPos(20,13);
+  // odom.turnTo(230);
+  // autoTake(0);
+  // wait(0.5, sec);
+  // odom.moveToPos(23,7);
+  // autoTake(3);
 }
 
 void rightSideAWP() {
@@ -739,7 +776,7 @@ void usercontrol(void) {
   botController.ButtonL2.released(whenL2Released);
   botController.ButtonR1.pressed(whenR1Pressed);
   botController.ButtonR1.released(whenR1Released);
-  botController.ButtonY.pressed(whenDownPressed);
+  botController.ButtonDown.pressed(whenDownPressed);
   botController.ButtonB.pressed(whenBPressed);
   // thread colorSortingFunct = thread(driverControlThreadThree);
   // thread doubleParkingFunct = thread(driverControlThreadFour);
