@@ -588,7 +588,7 @@ void autoTake(int dir){
 }
 
 void rightSideElims() {
-  left side
+  //left side
   odom.moveToPos(0, 7);
   autoTake(4);
   wait(.5,sec);
