@@ -157,7 +157,7 @@ class odometry {
 
       distanceTraveled += (rightSideDist + leftSideDist) / 2;
 
-      if(abs(sideways) < 0.01) {
+      if(fabs(sideways) < 0.01) {
         sideways = 0.0;
       }
 
@@ -179,7 +179,7 @@ class odometry {
       } else {
         totalDistance = rightSideDist;
 
-        if(abs(sideways) < 0.009) {
+        if(fabs(sideways) < 0.009) {
           sideways = 0;
         }
 
@@ -188,8 +188,6 @@ class odometry {
       }
 
       position[2] = inertialSensor.rotation();
-      printf("x: %f y: %f theta: %f", position[0], position[1], position[2]);
-      printf("\n");
       wait(10, msec);
     }
 
@@ -252,7 +250,7 @@ class odometry {
       curving = true;
       distanceTraveled = 0;
       motorSpeed = speed;
-      double totalDistance = 2*M_PI*radius * (abs(degrees)/360);
+      double totalDistance = 2*M_PI*radius * (fabs(degrees)/360);
       double originalAngle = position[2];
 
       while(distanceTraveled < totalDistance) {
@@ -268,9 +266,9 @@ class odometry {
     void turning() {
       double error = desiredAngle - position[2];
       // 0.06
-      double kp = 0.046;
-      double ki = 0.0001;
-      double kd = 0.4;
+      double kp = 0.05;
+      double ki = 0;
+      double kd = 0.405;
 
       while(true) {
         if(tracking) {
@@ -294,7 +292,7 @@ class odometry {
         } else {
           angled = false;
           double newSpeed = proportional + integral + derivative;
-          if(abs(turnSpeed - newSpeed) > 0.5) {
+          if(fabs(turnSpeed - newSpeed) > 0.5) {
             newSpeed = (newSpeed + turnSpeed)/2;
           }
           turnSpeed = newSpeed;
@@ -312,10 +310,12 @@ class odometry {
 
 
       //0.15
-      double kp = 0.14;
+      double kp = 0.15;
       double ki = 0.034;
       integral = 0;
-      double kd = 5.1;
+      //5.1
+      //4.5
+      double kd = 4.5;
 
       double oldDistance = 0;
 
@@ -345,7 +345,7 @@ class odometry {
         error = 0;
 
 
-        if(abs(xDif) <= abs(yDif)) {
+        if(fabs(xDif) <= fabs(yDif)) {
           if(quadrant == 1 || quadrant == 4) {
             if(yDif > 0) {
               driveDirection = -1;
@@ -405,7 +405,7 @@ class odometry {
             }
           }
 
-          if(abs(position[2] - error) > abs(position[2] - errorTwo)) {
+          if(fabs(position[2] - error) > fabs(position[2] - errorTwo)) {
             error = errorTwo;
           }
         } else {
@@ -443,7 +443,7 @@ class odometry {
         }
 
 
-        if(abs(position[0] - x) < xError && abs(position[1] - y) < yError) {
+        if(fabs(position[0] - x) < xError && fabs(position[1] - y) < yError) {
           positioned = true;
         } else {
           positioned = false;
@@ -466,6 +466,11 @@ class odometry {
     void mode(bool on = true, bool turning = true) {
       this->on = on;
       turnSwitch = turning;
+    }
+
+    void test() {
+      printf("imu: %f", inertialSensor.rotation());
+      printf("\n");
     }
 };
 /*---------------------------------------------------------------------------*/
@@ -539,24 +544,24 @@ int pre_auton(void) {
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
-// void move(int param, int speed){
-//   if(param == 1){
-//     leftSideDT.spin(forward, speed, volt);
-//     rightSideDT.spin(forward, speed, volt);
-//   } else if(param == -1){
-//     leftSideDT.spin(reverse, speed, volt);
-//     rightSideDT.spin(reverse, speed, volt);
-//   } else if(param = 2){
-//     leftSideDT.spin(reverse, speed, volt);
-//     rightSideDT.spin(forward, speed, volt);
-//   } else if(param = -2){
-//     leftSideDT.spin(forward, speed, volt);
-//     rightSideDT.spin(reverse, speed, volt);
-//   } else if(param == 0){
-//     leftSideDT.spin(forward, 0, volt);
-//     rightSideDT.spin(forward, 0, volt);
-//   }
-// }
+void move(int param, int speed = 0){
+  if(param == 1){
+    leftSideDT.spin(forward, speed, volt);
+    rightSideDT.spin(forward, speed, volt);
+  } else if(param == -1){
+    leftSideDT.spin(reverse, speed, volt);
+    rightSideDT.spin(reverse, speed, volt);
+  } else if(param == 2){
+    leftSideDT.spin(reverse, speed, volt);
+    rightSideDT.spin(forward, speed, volt);
+  } else if(param == -2){
+    leftSideDT.spin(forward, speed, volt);
+    rightSideDT.spin(reverse, speed, volt);
+  } else if(param == 0){
+    leftSideDT.spin(forward, 0, volt);
+    rightSideDT.spin(forward, 0, volt);
+  }
+}
 
 void autoTake(int dir){
   if(dir == 1){
@@ -566,22 +571,29 @@ void autoTake(int dir){
   } else if(dir == 2){
     //top goal
     topPiston.set(false);
-    bottomPiston.set(false);
-    motorIntakeOne.spin(forward, 5.5, volt);
+    bottomPiston.set(true);
+    motorIntakeOne.spin(forward, 11, volt);
     motorIntakeTwo.spin(forward, 11, volt);
   } else if(dir == 3){
     //middle goal
     topPiston.set(true);
-    bottomPiston.set(false);
-    motorIntakeOne.spin(forward, 5.5, volt);
+    bottomPiston.set(true);
+    motorIntakeOne.spin(forward, 11, volt);
     motorIntakeTwo.spin(forward, 11, volt);
   } else if(dir == 4){
     //storing
     topPiston.set(false);
-    bottomPiston.set(false);
-    motorIntakeOne.spin(forward, 5.5, volt);
+    bottomPiston.set(true);
+    motorIntakeOne.spin(forward, 11, volt);
     motorIntakeTwo.spin(forward, 11, volt);
-  } else {
+  } else if(dir == 5) {
+    motorIntakeOne.spin(forward, 11 * 0.6, volt);
+    motorIntakeTwo.spin(forward, 11 * 0.6, volt);
+  } else if(dir == 6) {
+    motorIntakeOne.spin(forward, 11, volt);
+    motorIntakeTwo.spin(forward, 11, volt);
+  }
+  else {
     motorIntakeOne.spin(forward, 0, volt);
     motorIntakeTwo.spin(forward, 0, volt);
   }
@@ -589,20 +601,37 @@ void autoTake(int dir){
 
 void rightSideElims() {
   //left side
-  odom.moveToPos(0, 7);
-  autoTake(4);
-  wait(.5,sec);
-  odom.moveToPos(0, -7.5);
-  odom.turnTo(-99);
-  wait(.75,sec);
-  odom.changeSpeed(.3);
-  odom.moveToPos(-20,-13);
-  odom.turnTo(-230);
-  autoTake(0);
-  wait(0.5, sec);
-  odom.moveToPos(0,-15);
-  odom.moveToPos(-23,-7);
-  autoTake(3);
+  autoTake(5);
+  rightSideDT.setStopping(brake);
+  leftSideDT.setStopping(brake);
+  odom.reset();
+  odom.moveToPos(0, 9.05);
+  odom.moveToPos(0, -15 - (0.75 * 15) - 0.42);
+  scraperSolenoid.set(true);
+  odom.turnTo(-85);
+  wait(1000, msec);
+  odom.changeSpeed(0.5);
+  odom.moveToPos(-7.4, -15 - (0.75 * 15) - 3.95);
+  odom.mode(false);
+  move(1, 10);
+  wait(200, msec);
+  move(0);
+  wait(750, msec);
+  move(-1, 7);
+  wait(500, msec);
+  move(0);
+  wait(250, msec);
+  odom.mode(true);
+  autoTake(6);
+  odom.turnTo(-90);
+  wait(1, sec);
+  odom.mode(false);
+  move(-1, 7);
+  wait(750, msec);
+  move(0);
+  autoTake(2);
+
+  
  
   // right side
   // odom.moveToPos(0, -7);
@@ -690,13 +719,12 @@ void autonomous(void) {
 /*---------------------------------------------------------------------------*/
 
 void driverControlThreadOne() {
-  printf("thread one \n");
   double movement = 0;
   double rotation = 0;
   while(true) {
-    movement = botController.Axis3.position();
-    rotation = botController.Axis1.position();
-
+    movement = botController.Axis3.position() * 0.11;
+    rotation = botController.Axis1.position() * 0.11;
+    odom.test();
     rightSideDT.spin(forward, movement - rotation, volt);
     leftSideDT.spin(forward, movement + rotation, volt);
     wait(10, msec);
@@ -766,6 +794,8 @@ void whenBPressed() {
 }
 
 void usercontrol(void) {
+  leftSideDT.setStopping(coast);
+  rightSideDT.setStopping(coast);
   thread moveFunctionality = thread(driverControlThreadOne);
   //thread unjam = thread(unjamCheck);
   botController.ButtonL1.pressed(whenL1Pressed);
